@@ -202,7 +202,7 @@ def add_to_manifest(repositories, fallback_branch = None):
 
 def fetch_dependencies(repo_path, fallback_branch = None):
     print('Looking for dependencies')
-    dependencies_path = repo_path + '/cm.dependencies'
+    dependencies_path = repo_path + '/tesla.dependencies'
     syncable_repos = []
 
     if os.path.exists(dependencies_path):
@@ -294,4 +294,4 @@ else:
             print("Done")
             sys.exit()
 
-print("Repository for %s not found in the CyanogenMod Github repository list. If this is in error, you may need to manually add it to your local_manifests/roomservice.xml." % device)
+print("Repository for %s not found in the Tesla Github repository list. If this is in error, you may need to manually add it to your local_manifests/roomservice.xml." % device)
