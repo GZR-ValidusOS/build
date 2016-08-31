@@ -92,5 +92,5 @@ $(info   TARGET_KERNEL_TOOLCHAIN=$(TARGET_GCC_VERSION_ARM))
 else
 $(info   TARGET_KERNEL_TOOLCHAIN=$(TARGET_GCC_VERSION))
 endif
-endif
 $(info =======================================================)
+endif
