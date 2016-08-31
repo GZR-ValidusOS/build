@@ -734,7 +734,8 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
     common.ZipWriteStr(output_zip, "supersu/supersu.zip",
                    ""+input_zip.read("SYSTEM/addon.d/UPDATE-SuperSU.zip"))
     script.Mount("/system")
-    script.FlashSuperSU()
+    # No SuperSU yet for N
+    #script.FlashSuperSU()
 
   script.ShowProgress(0.05, 5)
   script.WriteRawImage("/boot", "boot.img")
@@ -1692,9 +1693,11 @@ def main(argv):
   # also apply the labels in our new image. During building, the "file_contexts"
   # is in the out/ directory tree, but for repacking from target-files.zip it's
   # in the root directory of the ramdisk.
-  if "selinux_fc" in OPTIONS.info_dict:
-    OPTIONS.info_dict["selinux_fc"] = os.path.join(
-        OPTIONS.input_tmp, "BOOT", "RAMDISK", "file_contexts")
+
+  ## Disable this for now
+  #if "selinux_fc" in OPTIONS.info_dict:
+  #  OPTIONS.info_dict["selinux_fc"] = os.path.join(
+  #      OPTIONS.input_tmp, "BOOT", "RAMDISK", "file_contexts")
 
   if OPTIONS.verbose:
     print("--- target info ---")
