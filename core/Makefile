@@ -2119,12 +2119,16 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
 
 TESLA_TARGET_PACKAGE := $(PRODUCT_OUT)/Tesla-$(TESLA_VERSION).zip
 
-.PHONY: otapackage bacon
+.PHONY: otapackage bacon tesla
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
 bacon: otapackage
-	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(CM_TARGET_PACKAGE)
-	$(hide) $(MD5SUM) $(CM_TARGET_PACKAGE) > $(CM_TARGET_PACKAGE).md5sum
-	@echo "Package Complete: $(CM_TARGET_PACKAGE)"
+	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(TESLA_TARGET_PACKAGE)
+	$(hide) $(MD5SUM) $(TESLA_TARGET_PACKAGE) > $(TESLA_TARGET_PACKAGE).md5sum
+	@echo "Package Complete: $(TESLA_TARGET_PACKAGE)"
+tesla: otapackage
+	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(TESLA_TARGET_PACKAGE)
+	$(hide) $(MD5SUM) $(TESLA_TARGET_PACKAGE) > $(TESLA_TARGET_PACKAGE).md5sum
+	@echo "Package Complete: $(TESLA_TARGET_PACKAGE)"
 
 endif    # build_ota_package
 # -----------------------------------------------------------------

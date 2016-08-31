@@ -1,139 +1,72 @@
+
+export HMM_DESCRIPTIVE=(
+"lunch:   lunch <product_name>-<build_variant>"
+"tapas:   tapas [<App1> <App2> ...] [arm|x86|mips|armv5|arm64|x86_64|mips64] [eng|userdebug|user]"
+"croot:   Changes directory to the top of the tree."
+"cout:    Changes directory to out."
+"m:       Makes from the top of the tree."
+"mm:      Builds all of the modules in the current directory, but not their dependencies."
+"mmm:     Builds all of the modules in the supplied directories, but not their dependencies.
+               To limit the modules being built use the syntax: mmm dir/:target1,target2."
+"mma:     Builds all of the modules in the current directory, and their dependencies."
+"mmp:     Builds all of the modules in the current directory and pushes them to the device."
+"mmmp:    Builds all of the modules in the supplied directories and pushes them to the device."
+"mmma:    Builds all of the modules in the supplied directories, and their dependencies."
+"cgrep:   Greps on all local C/C++ files."
+"ggrep:   Greps on all local Gradle files."
+"jgrep:   Greps on all local Java files."
+"resgrep: Greps on all local res/*.xml files."
+"mangrep: Greps on all local AndroidManifest.xml files."
+"sepgrep: Greps on all local sepolicy files."
+"sgrep:   Greps on all local source files."
+"godir:   Go to the directory containing a file."
+"teslaremote: Add a git remote for matching TIPSY repository"
+"mka:      Builds using SCHED_BATCH on all processors"
+"mkap:     Builds the module(s) using mka and pushes them to the device."
+"cmka:     Cleans and builds using mka."
+"repolastsync: Prints date and time of last repo sync"
+"reposync: Parallel repo sync using ionice and SCHED_BATCH"
+"repopick: Utility to fetch changes from Gerrit."
+"installboot: Installs a boot.img to the connected device."
+"installrecovery: Installs a recovery.img to the connected device."
+)
+
 function hmm() {
-cat <<EOF
-Invoke ". build/envsetup.sh" from your shell to add the following functions to your environment:
-- lunch:     lunch <product_name>-<build_variant>
-- tapas:     tapas [<App1> <App2> ...] [arm|x86|mips|armv5|arm64|x86_64|mips64] [eng|userdebug|user]
-- croot:     Changes directory to the top of the tree.
-- cout:      Changes directory to out.
-- m:         Makes from the top of the tree.
-- mm:        Builds all of the modules in the current directory, but not their dependencies.
-- mmm:       Builds all of the modules in the supplied directories, but not their dependencies.
-             To limit the modules being built use the syntax: mmm dir/:target1,target2.
-- mma:       Builds all of the modules in the current directory, and their dependencies.
-- mmma:      Builds all of the modules in the supplied directories, and their dependencies.
-- mmap:      Builds all of the modules in the current directory, and its dependencies, then pushes the package to the device.
-- mmp:       Builds all of the modules in the current directory and pushes them to the device.
-- mmmp:      Builds all of the modules in the supplied directories and pushes them to the device.
-- mms:       Short circuit builder. Quickly re-build the kernel, rootfs, boot and system images
-             without deep dependencies. Requires the full build to have run before.
-- provision: Flash device with all required partitions. Options will be passed on to fastboot.
-- cgrep:     Greps on all local C/C++ files.
-- ggrep:     Greps on all local Gradle files.
-- jgrep:     Greps on all local Java files.
-- resgrep:   Greps on all local res/*.xml files.
-- mangrep:   Greps on all local AndroidManifest.xml files.
-- mgrep:     Greps on all local Makefiles files.
-- sepgrep:   Greps on all local sepolicy files.
-- sgrep:     Greps on all local source files.
-- godir:     Go to the directory containing a file.
-- cmremote:  Add git remote for CM Gerrit Review
-- cmgerrit:  A Git wrapper that fetches/pushes patch from/to CM Gerrit Review
-- aospremote: Add git remote for matching AOSP repository
-- cafremote: Add git remote for matching CodeAurora repository.
-- cmrebase:  Rebase a Gerrit change and push it again
-- mka:       Builds using SCHED_BATCH on all processors
-- mkap:      Builds the module(s) using mka and pushes them to the device.
-- cmka:      Cleans and builds using mka.
-- repolastsync: Prints date and time of last repo sync.
-- reposync:  Parallel repo sync using ionice and SCHED_BATCH
-- repopick:  Utility to fetch changes from Gerrit.
-- installboot: Installs a boot.img to the connected device.
-- installrecovery: Installs a recovery.img to the connected device.
-- repodiff:  Diff 2 different branches or tags within the same repo
-
-Environment options:
-- SANITIZE_HOST: Set to 'true' to use ASAN for all host modules. Note that
-                 ASAN_OPTIONS=detect_leaks=0 will be set by default until the
-                 build is leak-check clean.
-
-Look at the source to view more functions. The complete list is:
-EOF
     T=$(gettop)
-    for i in `cat $T/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
+
+    echo "Invoke \". build/envsetup.sh\" from your shell to add the following functions to your environment:"
+    for c in ${!HMM_DESCRIPTIVE[*]}; do
+        echo -e "- ${HMM_DESCRIPTIVE[$c]}"
+    done
+
+    echo
+    echo "Look at the source to view more functions. The complete list is:"
+    for i in `cat $T/build/envsetup.sh | sed -n "/^[ \t]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
       echo "$i"
     done | column
-}
-
-# Get all the build variables needed by this script in a single call to the build system.
-function build_build_var_cache()
-{
-    T=$(gettop)
-    # Grep out the variable names from the script.
-    cached_vars=`cat $T/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
-    cached_abs_vars=`cat $T/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
-    # Call the build system to dump the "<val>=<value>" pairs as a shell script.
-    build_dicts_script=`\cd $T; export CALLED_FROM_SETUP=true; export BUILD_SYSTEM=build/core; \
-                        command make --no-print-directory -f build/core/config.mk \
-                        dump-many-vars \
-                        DUMP_MANY_VARS="$cached_vars" \
-                        DUMP_MANY_ABS_VARS="$cached_abs_vars" \
-                        DUMP_VAR_PREFIX="var_cache_" \
-                        DUMP_ABS_VAR_PREFIX="abs_var_cache_"`
-    local ret=$?
-    if [ $ret -ne 0 ]
-    then
-        unset build_dicts_script
-        return $ret
-    fi
-    # Excute the script to store the "<val>=<value>" pairs as shell variables.
-    eval "$build_dicts_script"
-    ret=$?
-    unset build_dicts_script
-    if [ $ret -ne 0 ]
-    then
-        return $ret
-    fi
-    BUILD_VAR_CACHE_READY="true"
-}
-
-# Delete the build var cache, so that we can still call into the build system
-# to get build variables not listed in this script.
-function destroy_build_var_cache()
-{
-    unset BUILD_VAR_CACHE_READY
-    for v in $cached_vars; do
-      unset var_cache_$v
-    done
-    unset cached_vars
-    for v in $cached_abs_vars; do
-      unset abs_var_cache_$v
-    done
-    unset cached_abs_vars
 }
 
 # Get the value of a build variable as an absolute path.
 function get_abs_build_var()
 {
-    if [ "$BUILD_VAR_CACHE_READY" = "true" ]
-    then
-        eval echo \"\${abs_var_cache_$1}\"
-    return
-    fi
-
     T=$(gettop)
     if [ ! "$T" ]; then
         echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
         return
     fi
-    (\cd $T; export CALLED_FROM_SETUP=true; export BUILD_SYSTEM=build/core; \
+    (\cd $T; CALLED_FROM_SETUP=true BUILD_SYSTEM=build/core \
       command make --no-print-directory -f build/core/config.mk dumpvar-abs-$1)
 }
 
 # Get the exact value of a build variable.
 function get_build_var()
 {
-    if [ "$BUILD_VAR_CACHE_READY" = "true" ]
-    then
-        eval echo \"\${var_cache_$1}\"
-    return
-    fi
-
     T=$(gettop)
     if [ ! "$T" ]; then
         echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
         return
     fi
-    (\cd $T; export CALLED_FROM_SETUP=true; export BUILD_SYSTEM=build/core; \
+    (\cd $T; CALLED_FROM_SETUP=true BUILD_SYSTEM=build/core \
       command make --no-print-directory -f build/core/config.mk dumpvar-$1)
 }
 
@@ -216,6 +149,7 @@ function setpaths()
     # defined in core/config.mk
     targetgccversion=$(get_build_var TARGET_GCC_VERSION)
     targetgccversion2=$(get_build_var 2ND_TARGET_GCC_VERSION)
+    targetlegacygccversion=$(get_build_var TARGET_LEGACY_GCC_VERSION)
     export TARGET_GCC_VERSION=$targetgccversion
 
     # The gcc toolchain does not exists for windows/cygwin. In this case, do not reference it.
@@ -247,8 +181,23 @@ function setpaths()
         export ANDROID_TOOLCHAIN_2ND_ARCH=$gccprebuiltdir/$toolchaindir2
     fi
 
+    unset ANDROID_KERNEL_TOOLCHAIN_PATH
+    case $ARCH in
+        arm)
+            # Legacy toolchain configuration used for ARM kernel compilation
+            toolchaindir=arm/arm-eabi-$targetlegacygccversion/bin
+            if [ -d "$gccprebuiltdir/$toolchaindir" ]; then
+                 export ARM_EABI_TOOLCHAIN="$gccprebuiltdir/$toolchaindir"
+                 ANDROID_KERNEL_TOOLCHAIN_PATH="$ARM_EABI_TOOLCHAIN":
+            fi
+            ;;
+        *)
+            # No need to set ARM_EABI_TOOLCHAIN for other ARCHs
+            ;;
+    esac
+
     export ANDROID_DEV_SCRIPTS=$T/development/scripts:$T/prebuilts/devtools/tools:$T/external/selinux/prebuilts/bin
-    export ANDROID_BUILD_PATHS=$(get_build_var ANDROID_BUILD_PATHS):$ANDROID_TOOLCHAIN:$ANDROID_TOOLCHAIN_2ND_ARCH:$ANDROID_DEV_SCRIPTS:
+    export ANDROID_BUILD_PATHS=$(get_build_var ANDROID_BUILD_PATHS):$ANDROID_TOOLCHAIN:$ANDROID_TOOLCHAIN_2ND_ARCH:$ANDROID_KERNEL_TOOLCHAIN_PATH$ANDROID_DEV_SCRIPTS:
 
     # If prebuilts/android-emulator/<system>/ exists, prepend it to our PATH
     # to ensure that the corresponding 'emulator' binaries are used.
@@ -269,7 +218,6 @@ function setpaths()
     fi
 
     export PATH=$ANDROID_BUILD_PATHS$PATH
-    export PYTHONPATH=$T/development/python-packages:$PYTHONPATH
 
     unset ANDROID_JAVA_TOOLCHAIN
     unset ANDROID_PRE_BUILD_PATHS
@@ -416,9 +364,7 @@ function choosetype()
         fi
     done
 
-    build_build_var_cache
     set_stuff_for_environment
-    destroy_build_var_cache
 }
 
 #
@@ -432,10 +378,9 @@ function chooseproduct()
     if [ "x$TARGET_PRODUCT" != x ] ; then
         default_value=$TARGET_PRODUCT
     else
-        default_value=aosp_arm
+        default_value=full
     fi
 
-    export TARGET_BUILD_APPS=
     export TARGET_PRODUCT=
     local ANSWER
     while [ -z "$TARGET_PRODUCT" ]
@@ -463,9 +408,7 @@ function chooseproduct()
         fi
     done
 
-    build_build_var_cache
     set_stuff_for_environment
-    destroy_build_var_cache
 }
 
 function choosevariant()
@@ -528,10 +471,8 @@ function choosecombo()
     choosevariant $3
 
     echo
-    build_build_var_cache
     set_stuff_for_environment
     printconfig
-    destroy_build_var_cache
 }
 
 # Clear this variable.  It will be built up again when the vendorsetup.sh
@@ -591,12 +532,18 @@ function brunch()
 {
     breakfast $*
     if [ $? -eq 0 ]; then
-        mka bacon
+        mka tesla
     else
         echo "No such item in brunch menu. Try 'breakfast'"
         return 1
     fi
     return $?
+}
+
+function omnom
+{
+    brunch $*
+    eat
 }
 
 function breakfast()
@@ -622,7 +569,7 @@ function breakfast()
             # A buildtype was specified, assume a full device name
             lunch $target
         else
-            # This is probably just the Tesla model name
+            # This is probably just the TESLA model name
             if [ -z "$variant" ]; then
                 variant="userdebug"
             fi
@@ -672,21 +619,11 @@ function lunch()
 
     export TARGET_BUILD_APPS=
 
-    local variant=$(echo -n $selection | sed -e "s/^[^\-]*-//")
-    check_variant $variant
-    if [ $? -ne 0 ]
-    then
-        echo
-        echo "** Invalid variant: '$variant'"
-        echo "** Must be one of ${VARIANT_CHOICES[@]}"
-        variant=
-    fi
-
     local product=$(echo -n $selection | sed -e "s/-.*$//")
     check_product $product
     if [ $? -ne 0 ]
     then
-        # if we can't find a product, try to grab it off the Tesla github
+        # if we can't find a product, try to grab it off the TESLA github
         T=$(gettop)
         pushd $T > /dev/null
         build/tools/roomservice.py $product
@@ -695,16 +632,22 @@ function lunch()
     else
         build/tools/roomservice.py $product true
     fi
-    TARGET_PRODUCT=$product \
-    TARGET_BUILD_VARIANT=$variant \
-    build_build_var_cache
-
     if [ $? -ne 0 ]
     then
         echo
         echo "** Don't have a product spec for: '$product'"
         echo "** Do you have the right repo manifest?"
         product=
+    fi
+
+    local variant=$(echo -n $selection | sed -e "s/^[^\-]*-//")
+    check_variant $variant
+    if [ $? -ne 0 ]
+    then
+        echo
+        echo "** Invalid variant: '$variant'"
+        echo "** Must be one of ${VARIANT_CHOICES[@]}"
+        variant=
     fi
 
     if [ -z "$product" -o -z "$variant" ]
@@ -723,7 +666,6 @@ function lunch()
 
     set_stuff_for_environment
     printconfig
-    destroy_build_var_cache
 }
 
 # Tab completion for lunch.
@@ -761,10 +703,10 @@ function tapas()
         return
     fi
 
-    local product=aosp_arm
+    local product=full
     case $arch in
-      x86)    product=aosp_x86;;
-      mips)   product=aosp_mips;;
+      x86)    product=full_x86;;
+      mips)   product=full_mips;;
       armv5)  product=generic_armv5;;
       arm64)  product=aosp_arm64;;
       x86_64) product=aosp_x86_64;;
@@ -786,27 +728,25 @@ function tapas()
     export TARGET_BUILD_TYPE=release
     export TARGET_BUILD_APPS=$apps
 
-    build_build_var_cache
     set_stuff_for_environment
     printconfig
-    destroy_build_var_cache
 }
 
 function eat()
 {
     if [ "$OUT" ] ; then
         MODVERSION=$(get_build_var TESLA_VERSION)
-        ZIPFILE=tesla-$MODVERSION.zip
+        ZIPFILE=$MODVERSION.zip
         ZIPPATH=$OUT/$ZIPFILE
         if [ ! -f $ZIPPATH ] ; then
             echo "Nothing to eat"
             return 1
         fi
         adb start-server # Prevent unexpected starting server message from adb get-state in the next line
-        if [ $(adb get-state) != device -a $(adb shell test -e /sbin/recovery 2> /dev/null; echo $?) != 0 ] ; then
+        if [ $(adb get-state) != device -a $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) != 0 ] ; then
             echo "No device is online. Waiting for one..."
             echo "Please connect USB and/or enable USB debugging"
-            until [ $(adb get-state) = device -o $(adb shell test -e /sbin/recovery 2> /dev/null; echo $?) = 0 ];do
+            until [ $(adb get-state) = device -o $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) = 0 ];do
                 sleep 1
             done
             echo "Device Found.."
@@ -818,7 +758,7 @@ function eat()
         sleep 1
         adb wait-for-device
         cat << EOF > /tmp/command
---sideload_auto_reboot
+--sideload
 EOF
         if adb push /tmp/command /cache/recovery/ ; then
             echo "Rebooting into recovery for sideload installation"
@@ -835,12 +775,6 @@ EOF
     else
         echo "The connected device does not appear to be $TESLA_BUILD, run away!"
     fi
-}
-
-function omnom
-{
-    brunch $*
-    eat
 }
 
 function gettop
@@ -926,6 +860,7 @@ function mm()
         local M=$(findmakefile)
         local MODULES=
         local GET_INSTALL_PATH=
+        local ARGS=
         # Remove the path to top as the makefilepath needs to be relative
         local M=`echo $M|sed 's:'$T'/::'`
         if [ ! "$T" ]; then
@@ -942,12 +877,12 @@ function mm()
             done
             if [ -n "$GET_INSTALL_PATH" ]; then
               MODULES=
-              # set all args to 'GET-INSTALL-PATH'
-              set -- GET-INSTALL-PATH
+              ARGS=GET-INSTALL-PATH
             else
               MODULES=all_modules
+              ARGS=$@
             fi
-            ONE_SHOT_MAKEFILE=$M $DRV make -C $T -f build/core/main.mk $MODULES "$@"
+            ONE_SHOT_MAKEFILE=$M $DRV make -C $T -f build/core/main.mk $MODULES $ARGS
         fi
     fi
 }
@@ -962,15 +897,8 @@ function mmm()
         local ARGS=
         local DIR TO_CHOP
         local GET_INSTALL_PATH=
-
-        if [ "$(__detect_shell)" = "zsh" ]; then
-            set -lA DASH_ARGS $(echo "$@" | awk -v RS=" " -v ORS=" " '/^-.*$/')
-            set -lA DIRS $(echo "$@" | awk -v RS=" " -v ORS=" " '/^[^-].*$/')
-        else
-            local DASH_ARGS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^-.*$/')
-            local DIRS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^[^-].*$/')
-        fi
-
+        local DASH_ARGS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^-.*$/')
+        local DIRS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^[^-].*$/')
         for DIR in $DIRS ; do
             MODULES=`echo $DIR | sed -n -e 's/.*:\(.*$\)/\1/p' | sed 's/,/ /'`
             if [ "$MODULES" = "" ]; then
@@ -990,7 +918,7 @@ function mmm()
                 MAKEFILE="$MAKEFILE $MFILE"
             else
                 case $DIR in
-                  showcommands | snod | dist | *=*) ARGS="$ARGS $DIR";;
+                  showcommands | snod | dist | incrementaljavac | *=*) ARGS="$ARGS $DIR";;
                   GET-INSTALL-PATH) GET_INSTALL_PATH=$DIR;;
                   *) if [ -d $DIR ]; then
                          echo "No Android.mk in $DIR.";
@@ -1024,10 +952,7 @@ function mma()
       return 1
     fi
     local MY_PWD=`PWD= /bin/pwd|sed 's:'$T'/::'`
-    local MODULES_IN_PATHS=MODULES-IN-$MY_PWD
-    # Convert "/" to "-".
-    MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-    $DRV make -C $T -f build/core/main.mk $@ $MODULES_IN_PATHS
+    $DRV make -C $T -f build/core/main.mk $@ all_modules BUILD_MODULES_IN_PATHS="$MY_PWD"
   fi
 }
 
@@ -1036,13 +961,8 @@ function mmma()
   local T=$(gettop)
   local DRV=$(getdriver $T)
   if [ "$T" ]; then
-    if [ "$(__detect_shell)" = "zsh" ]; then
-        set -lA DASH_ARGS $(echo "$@" | awk -v RS=" " -v ORS=" " '/^-.*$/')
-        set -lA DIRS $(echo "$@" | awk -v RS=" " -v ORS=" " '/^[^-].*$/')
-    else
-        local DASH_ARGS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^-.*$/')
-        local DIRS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^[^-].*$/')
-    fi
+    local DASH_ARGS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^-.*$/')
+    local DIRS=$(echo "$@" | awk -v RS=" " -v ORS=" " '/^[^-].*$/')
     local MY_PWD=`PWD= /bin/pwd`
     if [ "$MY_PWD" = "$T" ]; then
       MY_PWD=
@@ -1050,27 +970,23 @@ function mmma()
       MY_PWD=`echo $MY_PWD|sed 's:'$T'/::'`
     fi
     local DIR=
-    local MODULES_IN_PATHS=
+    local MODULE_PATHS=
     local ARGS=
     for DIR in $DIRS ; do
       if [ -d $DIR ]; then
-        # Remove the leading ./ and trailing / if any exists.
-        DIR=${DIR#./}
-        DIR=${DIR%/}
-        if [ "$MY_PWD" != "" ]; then
-          DIR=$MY_PWD/$DIR
+        if [ "$MY_PWD" = "" ]; then
+          MODULE_PATHS="$MODULE_PATHS $DIR"
+        else
+          MODULE_PATHS="$MODULE_PATHS $MY_PWD/$DIR"
         fi
-        MODULES_IN_PATHS="$MODULES_IN_PATHS MODULES-IN-$DIR"
       else
         case $DIR in
-          showcommands | snod | dist | *=*) ARGS="$ARGS $DIR";;
+          showcommands | snod | dist | incrementaljavac | *=*) ARGS="$ARGS $DIR";;
           *) echo "Couldn't find directory $DIR"; return 1;;
         esac
       fi
     done
-    # Convert "/" to "-".
-    MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-    $DRV make -C $T -f build/core/main.mk $DASH_ARGS $ARGS $MODULES_IN_PATHS
+    $DRV make -C $T -f build/core/main.mk $DASH_ARGS $ARGS all_modules BUILD_MODULES_IN_PATHS="$MODULE_PATHS"
   else
     echo "Couldn't locate the top of the tree.  Try setting TOP."
     return 1
@@ -1123,18 +1039,18 @@ function qpid() {
         append='$'
         shift
     elif [ "$1" = "--help" -o "$1" = "-h" ]; then
-        echo "usage: qpid [[--exact] <process name|pid>"
-        return 255
-    fi
+		echo "usage: qpid [[--exact] <process name|pid>"
+		return 255
+	fi
 
     local EXE="$1"
     if [ "$EXE" ] ; then
-        qpid | \grep "$prepend$EXE$append"
-    else
-        adb shell ps \
-            | tr -d '\r' \
-            | sed -e 1d -e 's/^[^ ]* *\([0-9]*\).* \([^ ]*\)$/\1 \2/'
-    fi
+		qpid | \grep "$prepend$EXE$append"
+	else
+		adb shell ps \
+			| tr -d '\r' \
+			| sed -e 1d -e 's/^[^ ]* *\([0-9]*\).* \([^ ]*\)$/\1 \2/'
+	fi
 }
 
 function pid()
@@ -1155,7 +1071,7 @@ function pid()
         echo "$PID"
     else
         echo "usage: pid [--exact] <process name>"
-        return 255
+		return 255
     fi
 }
 
@@ -1168,25 +1084,25 @@ function pid()
 
 function coredump_setup()
 {
-    echo "Getting root...";
-    adb root;
-    adb wait-for-device;
+	echo "Getting root...";
+	adb root;
+	adb wait-for-device;
 
-    echo "Remounting root partition read-write...";
-    adb shell mount -w -o remount -t rootfs rootfs;
-    sleep 1;
-    adb wait-for-device;
-    adb shell mkdir -p /cores;
-    adb shell mount -t tmpfs tmpfs /cores;
-    adb shell chmod 0777 /cores;
+	echo "Remounting root parition read-write...";
+	adb shell mount -w -o remount -t rootfs rootfs;
+	sleep 1;
+	adb wait-for-device;
+	adb shell mkdir -p /cores;
+	adb shell mount -t tmpfs tmpfs /cores;
+	adb shell chmod 0777 /cores;
 
-    echo "Granting SELinux permission to dump in /cores...";
-    adb shell restorecon -R /cores;
+	echo "Granting SELinux permission to dump in /cores...";
+	adb shell restorecon -R /cores;
 
-    echo "Set core pattern.";
-    adb shell 'echo /cores/core.%p > /proc/sys/kernel/core_pattern';
+	echo "Set core pattern.";
+	adb shell 'echo /cores/core.%p > /proc/sys/kernel/core_pattern';
 
-    echo "Done."
+	echo "Done."
 }
 
 # coredump_enable - enable core dumps for the specified process
@@ -1197,13 +1113,13 @@ function coredump_setup()
 
 function coredump_enable()
 {
-    local PID=$1;
-    if [ -z "$PID" ]; then
-        printf "Expecting a PID!\n";
-        return;
-    fi;
-    echo "Setting core limit for $PID to infinite...";
-    adb shell prlimit $PID 4 -1 -1
+	local PID=$1;
+	if [ -z "$PID" ]; then
+		printf "Expecting a PID!\n";
+		return;
+	fi;
+	echo "Setting core limit for $PID to infinite...";
+	adb shell prlimit $PID 4 -1 -1
 }
 
 # core - send SIGV and pull the core for process
@@ -1214,28 +1130,28 @@ function coredump_enable()
 
 function core()
 {
-    local PID=$1;
+	local PID=$1;
 
-    if [ -z "$PID" ]; then
-        printf "Expecting a PID!\n";
-        return;
-    fi;
+	if [ -z "$PID" ]; then
+		printf "Expecting a PID!\n";
+		return;
+	fi;
 
-    local CORENAME=core.$PID;
-    local COREPATH=/cores/$CORENAME;
-    local SIG=SEGV;
+	local CORENAME=core.$PID;
+	local COREPATH=/cores/$CORENAME;
+	local SIG=SEGV;
 
-    coredump_enable $1;
+	coredump_enable $1;
 
-    local done=0;
-    while [ $(adb shell "[ -d /proc/$PID ] && echo -n yes") ]; do
-        printf "\tSending SIG%s to %d...\n" $SIG $PID;
-        adb shell kill -$SIG $PID;
-        sleep 1;
-    done;
+	local done=0;
+	while [ $(adb shell "[ -d /proc/$PID ] && echo -n yes") ]; do
+		printf "\tSending SIG%s to %d...\n" $SIG $PID;
+		adb shell kill -$SIG $PID;
+		sleep 1;
+	done;
 
-    adb shell "while [ ! -f $COREPATH ] ; do echo waiting for $COREPATH to be generated; sleep 1; done"
-    echo "Done: core is under $COREPATH on device.";
+	adb shell "while [ ! -f $COREPATH ] ; do echo waiting for $COREPATH to be generated; sleep 1; done"
+	echo "Done: core is under $COREPATH on device.";
 }
 
 # systemstack - dump the current stack trace of all threads in the system process
@@ -1413,16 +1329,14 @@ case `uname -s` in
     Darwin)
         function sgrep()
         {
-            find -E . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*\.(c|h|cc|cpp|S|java|xml|sh|mk|aidl|vts)' \
-                -exec grep --color -n "$@" {} +
+            find -E . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*\.(c|h|cc|cpp|S|java|xml|sh|mk|aidl)' -print0 | xargs -0 grep --color -n "$@"
         }
 
         ;;
     *)
         function sgrep()
         {
-            find . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*\.\(c\|h\|cc\|cpp\|S\|java\|xml\|sh\|mk\|aidl\|vts\)' \
-                -exec grep --color -n "$@" {} +
+            find . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*\.\(c\|h\|cc\|cpp\|S\|java\|xml\|sh\|mk\|aidl\)' -print0 | xargs -0 grep --color -n "$@"
         }
         ;;
 esac
@@ -1434,73 +1348,61 @@ function gettargetarch
 
 function ggrep()
 {
-    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.gradle" \
-        -exec grep --color -n "$@" {} +
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.gradle" -print0 | xargs -0 grep --color -n "$@"
 }
 
 function jgrep()
 {
-    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.java" \
-        -exec grep --color -n "$@" {} +
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.java" -print0 | xargs -0 grep --color -n "$@"
 }
 
 function cgrep()
 {
-    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \
-        -exec grep --color -n "$@" {} +
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print0 | xargs -0 grep --color -n "$@"
 }
 
 function resgrep()
 {
-    for dir in `find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -name res -type d`; do
-        find $dir -type f -name '*\.xml' -exec grep --color -n "$@" {} +
-    done
+    for dir in `find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -name res -type d`; do find $dir -type f -name '*\.xml' -print0 | xargs -0 grep --color -n "$@"; done;
 }
 
 function mangrep()
 {
-    find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -name 'AndroidManifest.xml' \
-        -exec grep --color -n "$@" {} +
+    find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -name 'AndroidManifest.xml' -print0 | xargs -0 grep --color -n "$@"
 }
 
 function sepgrep()
 {
-    find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -name sepolicy -type d \
-        -exec grep --color -n -r --exclude-dir=\.git "$@" {} +
+    find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -name sepolicy -type d -print0 | xargs -0 grep --color -n -r --exclude-dir=\.git "$@"
 }
 
 function rcgrep()
 {
-    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.rc*" \
-        -exec grep --color -n "$@" {} +
+    find . -name .repo -prune -o -name .git -prune -o -name out -prune -o -type f -name "*\.rc*" -print0 | xargs -0 grep --color -n "$@"
 }
 
 case `uname -s` in
     Darwin)
         function mgrep()
         {
-            find -E . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -iregex '.*/(Makefile|Makefile\..*|.*\.make|.*\.mak|.*\.mk)' \
-                -exec grep --color -n "$@" {} +
+            find -E . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -iregex '.*/(Makefile|Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -print0 | xargs -0 grep --color -n "$@"
         }
 
         function treegrep()
         {
-            find -E . -name .repo -prune -o -name .git -prune -o -type f -iregex '.*\.(c|h|cpp|S|java|xml)' \
-                -exec grep --color -n -i "$@" {} +
+            find -E . -name .repo -prune -o -name .git -prune -o -type f -iregex '.*\.(c|h|cpp|S|java|xml)' -print0 | xargs -0 grep --color -n -i "$@"
         }
 
         ;;
     *)
         function mgrep()
         {
-            find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -regextype posix-egrep -iregex '(.*\/Makefile|.*\/Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -type f \
-                -exec grep --color -n "$@" {} +
+            find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -regextype posix-egrep -iregex '(.*\/Makefile|.*\/Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -type f -print0 | xargs -0 grep --color -n "$@"
         }
 
         function treegrep()
         {
-            find . -name .repo -prune -o -name .git -prune -o -regextype posix-egrep -iregex '.*\.(c|h|cpp|S|java|xml)' -type f \
-                -exec grep --color -n -i "$@" {} +
+            find . -name .repo -prune -o -name .git -prune -o -regextype posix-egrep -iregex '.*\.(c|h|cpp|S|java|xml)' -type f -print0 | xargs -0 grep --color -n -i "$@"
         }
 
         ;;
@@ -1765,57 +1667,104 @@ function godir () {
     \cd $T/$pathname
 }
 
-function cmremote()
-{
-    if ! git rev-parse --git-dir &> /dev/null
-    then
-        echo ".git directory not found. Please run this from the root directory of the Android repository you wish to set up."
-        return 1
-    fi
-    git remote rm cmremote 2> /dev/null
-    GERRIT_REMOTE=$(git config --get remote.github.projectname)
-    CMUSER=$(git config --get review.review.cyanogenmod.org.username)
-    if [ -z "$CMUSER" ]
-    then
-        git remote add cmremote ssh://review.cyanogenmod.org:29418/$GERRIT_REMOTE
+function makerecipe() {
+  if [ -z "$1" ]
+  then
+    echo "No branch name provided."
+    return 1
+  fi
+  cd android
+  sed -i s/'default revision=.*'/'default revision="refs\/heads\/'$1'"'/ default.xml
+  git commit -a -m "$1"
+  cd ..
+
+  repo forall -c '
+
+  if [ "$REPO_REMOTE" == "github" ]
+  then
+    pwd
+    cmremote
+    git push cmremote HEAD:refs/heads/'$1'
+  fi
+  '
+}
+
+function mka() {
+    local T=$(gettop)
+    if [ "$T" ]; then
+        case `uname -s` in
+            Darwin)
+                make -C $T -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+                ;;
+            *)
+                mk_timer schedtool -B -n 1 -e ionice -n 1 make -C $T -j$(cat /proc/cpuinfo | grep "^processor" | wc -l) "$@"
+                ;;
+        esac
+
     else
-        git remote add cmremote ssh://$CMUSER@review.cyanogenmod.org:29418/$GERRIT_REMOTE
+        echo "Couldn't locate the top of the tree.  Try setting TOP."
     fi
-    echo "Remote 'cmremote' created"
 }
 
-function aospremote()
-{
-    if ! git rev-parse --git-dir &> /dev/null
-    then
-        echo ".git directory not found. Please run this from the root directory of the Android repository you wish to set up."
-        return 1
+function cmka() {
+    if [ ! -z "$1" ]; then
+        for i in "$@"; do
+            case $i in
+                bacon|otapackage|systemimage)
+                    mka installclean
+                    mka $i
+                    ;;
+                *)
+                    mka clean-$i
+                    mka $i
+                    ;;
+            esac
+        done
+    else
+        mka clean
+        mka
     fi
-    git remote rm aosp 2> /dev/null
-    PROJECT=$(pwd -P | sed "s#$ANDROID_BUILD_TOP\/##")
-    if (echo $PROJECT | grep -qv "^device")
-    then
-        PFX="platform/"
-    fi
-    git remote add aosp https://android.googlesource.com/$PFX$PROJECT
-    echo "Remote 'aosp' created"
 }
 
-function cafremote()
-{
-    if ! git rev-parse --git-dir &> /dev/null
-    then
-        echo ".git directory not found. Please run this from the root directory of the Android repository you wish to set up."
-        return 1
+function repolastsync() {
+    RLSPATH="$ANDROID_BUILD_TOP/.repo/.repo_fetchtimes.json"
+    RLSLOCAL=$(date -d "$(stat -c %z $RLSPATH)" +"%e %b %Y, %T %Z")
+    RLSUTC=$(date -d "$(stat -c %z $RLSPATH)" -u +"%e %b %Y, %T %Z")
+    echo "Last repo sync: $RLSLOCAL / $RLSUTC"
+}
+
+function reposync() {
+    case `uname -s` in
+        Darwin)
+            repo sync -j 4 "$@"
+            ;;
+        *)
+            schedtool -B -n 1 -e ionice -n 1 `which repo` sync -j 4 "$@"
+            ;;
+    esac
+}
+
+function repopick() {
+    T=$(gettop)
+    $T/build/tools/repopick.py $@
+}
+
+function fixup_common_out_dir() {
+    common_out_dir=$(get_build_var OUT_DIR)/target/common
+    target_device=$(get_build_var TARGET_DEVICE)
+    if [ ! -z $TESLA_FIXUP_COMMON_OUT ]; then
+        if [ -d ${common_out_dir} ] && [ ! -L ${common_out_dir} ]; then
+            mv ${common_out_dir} ${common_out_dir}-${target_device}
+            ln -s ${common_out_dir}-${target_device} ${common_out_dir}
+        else
+            [ -L ${common_out_dir} ] && rm ${common_out_dir}
+            mkdir -p ${common_out_dir}-${target_device}
+            ln -s ${common_out_dir}-${target_device} ${common_out_dir}
+        fi
+    else
+        [ -L ${common_out_dir} ] && rm ${common_out_dir}
+        mkdir -p ${common_out_dir}
     fi
-    git remote rm caf 2> /dev/null
-    PROJECT=$(pwd -P | sed "s#$ANDROID_BUILD_TOP\/##")
-    if (echo $PROJECT | grep -qv "^device")
-    then
-        PFX="platform/"
-    fi
-    git remote add caf git://codeaurora.org/$PFX$PROJECT
-    echo "Remote 'caf' created"
 }
 
 function installboot()
@@ -1891,7 +1840,7 @@ function installrecovery()
     adb wait-for-online
     adb root
     sleep 1
-    adb wait-for-online shell mount /system 2>&1 >> /dev/null
+    adb wait-for-online shell mount /system 2>&1 > /dev/null
     adb wait-for-online remount
     if (adb shell getprop ro.tesla.device | grep -q "$TESLA_BUILD");
     then
@@ -1903,409 +1852,6 @@ function installrecovery()
     fi
 }
 
-function makerecipe() {
-  if [ -z "$1" ]
-  then
-    echo "No branch name provided."
-    return 1
-  fi
-  cd android
-  sed -i s/'default revision=.*'/'default revision="refs\/heads\/'$1'"'/ default.xml
-  git commit -a -m "$1"
-  cd ..
-
-  repo forall -c '
-
-  if [ "$REPO_REMOTE" = "github" ]
-  then
-    pwd
-    cmremote
-    git push cmremote HEAD:refs/heads/'$1'
-  fi
-  '
-}
-
-function cmgerrit() {
-
-    if [ "$(__detect_shell)" = "zsh" ]; then
-        # zsh does not define FUNCNAME, derive from funcstack
-        local FUNCNAME=$funcstack[1]
-    fi
-
-    if [ $# -eq 0 ]; then
-        $FUNCNAME help
-        return 1
-    fi
-    local user=`git config --get review.review.cyanogenmod.org.username`
-    local review=`git config --get remote.github.review`
-    local project=`git config --get remote.github.projectname`
-    local command=$1
-    shift
-    case $command in
-        help)
-            if [ $# -eq 0 ]; then
-                cat <<EOF
-Usage:
-    $FUNCNAME COMMAND [OPTIONS] [CHANGE-ID[/PATCH-SET]][{@|^|~|:}ARG] [-- ARGS]
-
-Commands:
-    fetch   Just fetch the change as FETCH_HEAD
-    help    Show this help, or for a specific command
-    pull    Pull a change into current branch
-    push    Push HEAD or a local branch to Gerrit for a specific branch
-
-Any other Git commands that support refname would work as:
-    git fetch URL CHANGE && git COMMAND OPTIONS FETCH_HEAD{@|^|~|:}ARG -- ARGS
-
-See '$FUNCNAME help COMMAND' for more information on a specific command.
-
-Example:
-    $FUNCNAME checkout -b topic 1234/5
-works as:
-    git fetch http://DOMAIN/p/PROJECT refs/changes/34/1234/5 \\
-      && git checkout -b topic FETCH_HEAD
-will checkout a new branch 'topic' base on patch-set 5 of change 1234.
-Patch-set 1 will be fetched if omitted.
-EOF
-                return
-            fi
-            case $1 in
-                __cmg_*) echo "For internal use only." ;;
-                changes|for)
-                    if [ "$FUNCNAME" = "cmgerrit" ]; then
-                        echo "'$FUNCNAME $1' is deprecated."
-                    fi
-                    ;;
-                help) $FUNCNAME help ;;
-                fetch|pull) cat <<EOF
-usage: $FUNCNAME $1 [OPTIONS] CHANGE-ID[/PATCH-SET]
-
-works as:
-    git $1 OPTIONS http://DOMAIN/p/PROJECT \\
-      refs/changes/HASH/CHANGE-ID/{PATCH-SET|1}
-
-Example:
-    $FUNCNAME $1 1234
-will $1 patch-set 1 of change 1234
-EOF
-                    ;;
-                push) cat <<EOF
-usage: $FUNCNAME push [OPTIONS] [LOCAL_BRANCH:]REMOTE_BRANCH
-
-works as:
-    git push OPTIONS ssh://USER@DOMAIN:29418/PROJECT \\
-      {LOCAL_BRANCH|HEAD}:refs/for/REMOTE_BRANCH
-
-Example:
-    $FUNCNAME push fix6789:gingerbread
-will push local branch 'fix6789' to Gerrit for branch 'gingerbread'.
-HEAD will be pushed from local if omitted.
-EOF
-                    ;;
-                *)
-                    $FUNCNAME __cmg_err_not_supported $1 && return
-                    cat <<EOF
-usage: $FUNCNAME $1 [OPTIONS] CHANGE-ID[/PATCH-SET][{@|^|~|:}ARG] [-- ARGS]
-
-works as:
-    git fetch http://DOMAIN/p/PROJECT \\
-      refs/changes/HASH/CHANGE-ID/{PATCH-SET|1} \\
-      && git $1 OPTIONS FETCH_HEAD{@|^|~|:}ARG -- ARGS
-EOF
-                    ;;
-            esac
-            ;;
-        __cmg_get_ref)
-            $FUNCNAME __cmg_err_no_arg $command $# && return 1
-            local change_id patchset_id hash
-            case $1 in
-                */*)
-                    change_id=${1%%/*}
-                    patchset_id=${1#*/}
-                    ;;
-                *)
-                    change_id=$1
-                    patchset_id=1
-                    ;;
-            esac
-            hash=$(($change_id % 100))
-            case $hash in
-                [0-9]) hash="0$hash" ;;
-            esac
-            echo "refs/changes/$hash/$change_id/$patchset_id"
-            ;;
-        fetch|pull)
-            $FUNCNAME __cmg_err_no_arg $command $# help && return 1
-            $FUNCNAME __cmg_err_not_repo && return 1
-            local change=$1
-            shift
-            git $command $@ http://$review/p/$project \
-                $($FUNCNAME __cmg_get_ref $change) || return 1
-            ;;
-        push)
-            $FUNCNAME __cmg_err_no_arg $command $# help && return 1
-            $FUNCNAME __cmg_err_not_repo && return 1
-            if [ -z "$user" ]; then
-                echo >&2 "Gerrit username not found."
-                return 1
-            fi
-            local local_branch remote_branch
-            case $1 in
-                *:*)
-                    local_branch=${1%:*}
-                    remote_branch=${1##*:}
-                    ;;
-                *)
-                    local_branch=HEAD
-                    remote_branch=$1
-                    ;;
-            esac
-            shift
-            git push $@ ssh://$user@$review:29418/$project \
-                $local_branch:refs/for/$remote_branch || return 1
-            ;;
-        changes|for)
-            if [ "$FUNCNAME" = "cmgerrit" ]; then
-                echo >&2 "'$FUNCNAME $command' is deprecated."
-            fi
-            ;;
-        __cmg_err_no_arg)
-            if [ $# -lt 2 ]; then
-                echo >&2 "'$FUNCNAME $command' missing argument."
-            elif [ $2 -eq 0 ]; then
-                if [ -n "$3" ]; then
-                    $FUNCNAME help $1
-                else
-                    echo >&2 "'$FUNCNAME $1' missing argument."
-                fi
-            else
-                return 1
-            fi
-            ;;
-        __cmg_err_not_repo)
-            if [ -z "$review" -o -z "$project" ]; then
-                echo >&2 "Not currently in any reviewable repository."
-            else
-                return 1
-            fi
-            ;;
-        __cmg_err_not_supported)
-            $FUNCNAME __cmg_err_no_arg $command $# && return
-            case $1 in
-                #TODO: filter more git commands that don't use refname
-                init|add|rm|mv|status|clone|remote|bisect|config|stash)
-                    echo >&2 "'$FUNCNAME $1' is not supported."
-                    ;;
-                *) return 1 ;;
-            esac
-            ;;
-    #TODO: other special cases?
-        *)
-            $FUNCNAME __cmg_err_not_supported $command && return 1
-            $FUNCNAME __cmg_err_no_arg $command $# help && return 1
-            $FUNCNAME __cmg_err_not_repo && return 1
-            local args="$@"
-            local change pre_args refs_arg post_args
-            case "$args" in
-                *--\ *)
-                    pre_args=${args%%-- *}
-                    post_args="-- ${args#*-- }"
-                    ;;
-                *) pre_args="$args" ;;
-            esac
-            args=($pre_args)
-            pre_args=
-            if [ ${#args[@]} -gt 0 ]; then
-                change=${args[${#args[@]}-1]}
-            fi
-            if [ ${#args[@]} -gt 1 ]; then
-                pre_args=${args[0]}
-                for ((i=1; i<${#args[@]}-1; i++)); do
-                    pre_args="$pre_args ${args[$i]}"
-                done
-            fi
-            while ((1)); do
-                case $change in
-                    ""|--)
-                        $FUNCNAME help $command
-                        return 1
-                        ;;
-                    *@*)
-                        if [ -z "$refs_arg" ]; then
-                            refs_arg="@${change#*@}"
-                            change=${change%%@*}
-                        fi
-                        ;;
-                    *~*)
-                        if [ -z "$refs_arg" ]; then
-                            refs_arg="~${change#*~}"
-                            change=${change%%~*}
-                        fi
-                        ;;
-                    *^*)
-                        if [ -z "$refs_arg" ]; then
-                            refs_arg="^${change#*^}"
-                            change=${change%%^*}
-                        fi
-                        ;;
-                    *:*)
-                        if [ -z "$refs_arg" ]; then
-                            refs_arg=":${change#*:}"
-                            change=${change%%:*}
-                        fi
-                        ;;
-                    *) break ;;
-                esac
-            done
-            $FUNCNAME fetch $change \
-                && git $command $pre_args FETCH_HEAD$refs_arg $post_args \
-                || return 1
-            ;;
-    esac
-}
-
-function cmrebase() {
-    local repo=$1
-    local refs=$2
-    local pwd="$(pwd)"
-    local dir="$(gettop)/$repo"
-
-    if [ -z $repo ] || [ -z $refs ]; then
-        echo "CyanogenMod Gerrit Rebase Usage: "
-        echo "      cmrebase <path to project> <patch IDs on Gerrit>"
-        echo "      The patch IDs appear on the Gerrit commands that are offered."
-        echo "      They consist on a series of numbers and slashes, after the text"
-        echo "      refs/changes. For example, the ID in the following command is 26/8126/2"
-        echo ""
-        echo "      git[...]ges_apps_Camera refs/changes/26/8126/2 && git cherry-pick FETCH_HEAD"
-        echo ""
-        return
-    fi
-
-    if [ ! -d $dir ]; then
-        echo "Directory $dir doesn't exist in tree."
-        return
-    fi
-    cd $dir
-    repo=$(cat .git/config  | grep git://github.com | awk '{ print $NF }' | sed s#git://github.com/##g)
-    echo "Starting branch..."
-    repo start tmprebase .
-    echo "Bringing it up to date..."
-    repo sync .
-    echo "Fetching change..."
-    git fetch "http://review.cyanogenmod.org/p/$repo" "refs/changes/$refs" && git cherry-pick FETCH_HEAD
-    if [ "$?" != "0" ]; then
-        echo "Error cherry-picking. Not uploading!"
-        return
-    fi
-    echo "Uploading..."
-    repo upload .
-    echo "Cleaning up..."
-    repo abandon tmprebase .
-    cd $pwd
-}
-
-function mka() {
-    local T=$(gettop)
-    if [ "$T" ]; then
-        case `uname -s` in
-            Darwin)
-                make -C $T -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
-                ;;
-            *)
-                mk_timer schedtool -B -n 1 -e ionice -n 1 make -C $T -j$(cat /proc/cpuinfo | grep "^processor" | wc -l) "$@"
-                ;;
-        esac
-
-    else
-        echo "Couldn't locate the top of the tree.  Try setting TOP."
-    fi
-}
-
-function cmka() {
-    if [ ! -z "$1" ]; then
-        for i in "$@"; do
-            case $i in
-                bacon|otapackage|systemimage)
-                    mka installclean
-                    mka $i
-                    ;;
-                *)
-                    mka clean-$i
-                    mka $i
-                    ;;
-            esac
-        done
-    else
-        mka clean
-        mka
-    fi
-}
-
-function mms() {
-    local T=$(gettop)
-    if [ -z "$T" ]
-    then
-        echo "Couldn't locate the top of the tree.  Try setting TOP."
-        return 1
-    fi
-
-    case `uname -s` in
-        Darwin)
-            local NUM_CPUS=$(sysctl hw.ncpu|cut -d" " -f2)
-            ONE_SHOT_MAKEFILE="__none__" \
-                make -C $T -j $NUM_CPUS "$@"
-            ;;
-        *)
-            local NUM_CPUS=$(cat /proc/cpuinfo | grep "^processor" | wc -l)
-            ONE_SHOT_MAKEFILE="__none__" \
-                mk_timer schedtool -B -n 1 -e ionice -n 1 \
-                make -C $T -j $NUM_CPUS "$@"
-            ;;
-    esac
-}
-
-
-function repolastsync() {
-    RLSPATH="$ANDROID_BUILD_TOP/.repo/.repo_fetchtimes.json"
-    RLSLOCAL=$(date -d "$(stat -c %z $RLSPATH)" +"%e %b %Y, %T %Z")
-    RLSUTC=$(date -d "$(stat -c %z $RLSPATH)" -u +"%e %b %Y, %T %Z")
-    echo "Last repo sync: $RLSLOCAL / $RLSUTC"
-}
-
-function reposync() {
-    case `uname -s` in
-        Darwin)
-            repo sync -j 4 "$@"
-            ;;
-        *)
-            schedtool -B -n 1 -e ionice -n 1 `which repo` sync -j 4 "$@"
-            ;;
-    esac
-}
-
-function repodiff() {
-    if [ -z "$*" ]; then
-        echo "Usage: repodiff <ref-from> [[ref-to] [--numstat]]"
-        return
-    fi
-    diffopts=$* repo forall -c \
-      'echo "$REPO_PATH ($REPO_REMOTE)"; git diff ${diffopts} 2>/dev/null ;'
-}
-
-# Return success if adb is up and not in recovery
-function _adb_connected {
-    {
-        if [[ "$(adb get-state)" == device &&
-              "$(adb shell test -e /sbin/recovery; echo $?)" == 0 ]]
-        then
-            return 0
-        fi
-    } 2>/dev/null
-
-    return 1
-};
-
 # Credit for color strip sed: http://goo.gl/BoIcm
 function dopush()
 {
@@ -2313,16 +1859,16 @@ function dopush()
     shift
 
     adb start-server # Prevent unexpected starting server message from adb get-state in the next line
-    if ! _adb_connected; then
+    if [ $(adb get-state) != device -a $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) != 0 ] ; then
         echo "No device is online. Waiting for one..."
         echo "Please connect USB and/or enable USB debugging"
-        until _adb_connected; do
+        until [ $(adb get-state) = device -o $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) = 0 ];do
             sleep 1
         done
         echo "Device Found."
     fi
 
-    if (adb shell getprop ro.cm.device | grep -q "$CM_BUILD") || [ "$FORCE_PUSH" = "true" ];
+    if (adb shell getprop ro.tesla.device | grep -q "$TESLA_BUILD") || [ "$FORCE_PUSH" == "true" ];
     then
     # retrieve IP and PORT info if we're using a TCP connection
     TCPIPPORT=$(adb devices | egrep '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+[^0-9]+' \
@@ -2335,7 +1881,8 @@ function dopush()
         # so reconnect...
         adb connect "$TCPIPPORT"
     fi
-    adb wait-for-device &> /dev/null
+
+   adb wait-for-device &> /dev/null
     sleep 0.3
     adb remount &> /dev/null
 
@@ -2347,18 +1894,10 @@ function dopush()
     fi
 
     # Install: <file>
-    if [ `uname` = "Linux" ]; then
-        LOC="$(cat $OUT/.log | sed -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' | grep '^Install: ' | cut -d ':' -f 2)"
-    else
-        LOC="$(cat $OUT/.log | sed -E "s/"$'\E'"\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" | grep '^Install: ' | cut -d ':' -f 2)"
-    fi
+    LOC="$(cat $OUT/.log | sed -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' | grep '^Install: ' | cut -d ':' -f 2)"
 
     # Copy: <file>
-    if [ `uname` = "Linux" ]; then
-        LOC="$LOC $(cat $OUT/.log | sed -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' | grep '^Copy: ' | cut -d ':' -f 2)"
-    else
-        LOC="$LOC $(cat $OUT/.log | sed -E "s/"$'\E'"\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" | grep '^Copy: ' | cut -d ':' -f 2)"
-    fi
+    LOC="$LOC $(cat $OUT/.log | sed -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' | grep '^Copy: ' | cut -d ':' -f 2)"
 
     # If any files are going to /data, push an octal file permissions reader to device
     if [ -n "$(echo $LOC | egrep '(^|\s)/data')" ]; then
@@ -2439,34 +1978,14 @@ EOF
 
 alias mmp='dopush mm'
 alias mmmp='dopush mmm'
-alias mmap='dopush mma'
 alias mkap='dopush mka'
 alias cmkap='dopush cmka'
 
-function repopick() {
-    T=$(gettop)
-    $T/build/tools/repopick.py $@
-}
-
-function fixup_common_out_dir() {
-    common_out_dir=$(get_build_var OUT_DIR)/target/common
-    target_device=$(get_build_var TARGET_DEVICE)
-    if [ ! -z $TESLA_FIXUP_COMMON_OUT ]; then
-        if [ -d ${common_out_dir} ] && [ ! -L ${common_out_dir} ]; then
-            mv ${common_out_dir} ${common_out_dir}-${target_device}
-            ln -s ${common_out_dir}-${target_device} ${common_out_dir}
-        else
-            [ -L ${common_out_dir} ] && rm ${common_out_dir}
-            mkdir -p ${common_out_dir}-${target_device}
-            ln -s ${common_out_dir}-${target_device} ${common_out_dir}
-        fi
-    else
-        [ -L ${common_out_dir} ] && rm ${common_out_dir}
-        mkdir -p ${common_out_dir}
-    fi
-}
-
-# Force JAVA_HOME to point to java 1.7/1.8 if it isn't already set.
+# Force JAVA_HOME to point to java 1.7 if it isn't already set.
+#
+# Note that the MacOS path for java 1.7 includes a minor revision number (sigh).
+# For some reason, installing the JDK doesn't make it show up in the
+# JavaVM.framework/Versions/1.7/ folder.
 function set_java_home() {
     # Clear the existing JAVA_HOME value if we set it ourselves, so that
     # we can reset it later, depending on the version of java the build
@@ -2479,26 +1998,14 @@ function set_java_home() {
     fi
 
     if [ ! "$JAVA_HOME" ]; then
-      if [ -n "$LEGACY_USE_JAVA7" ]; then
-        echo Warning: Support for JDK 7 will be dropped. Switch to JDK 8.
-        case `uname -s` in
-            Darwin)
-                export JAVA_HOME=$(/usr/libexec/java_home -v 1.7)
-                ;;
-            *)
-                export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
-                ;;
-        esac
-      else
-        case `uname -s` in
-            Darwin)
-                export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
-                ;;
-            *)
-                export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-                ;;
-        esac
-      fi
+      case `uname -s` in
+          Darwin)
+              export JAVA_HOME=$(/usr/libexec/java_home -v 1.7)
+              ;;
+          *)
+              export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
+              ;;
+      esac
 
       # Keep track of the fact that we set JAVA_HOME ourselves, so that
       # we can change it on the next envsetup.sh, if required.
@@ -2512,9 +2019,9 @@ function pez {
     local retval=$?
     if [ $retval -ne 0 ]
     then
-        echo $'\E'"[0;31mFAILURE\e[00m"
+        printf "\e[0;31mFAILURE\e[00m\n"
     else
-        echo $'\E'"[0;32mSUCCESS\e[00m"
+        printf "\e[0;32mSUCCESS\e[00m\n"
     fi
     return $retval
 }
@@ -2536,9 +2043,9 @@ function mk_timer()
     local secs=$(($tdiff % 60))
     local ncolors=$(tput colors 2>/dev/null)
     if [ -n "$ncolors" ] && [ $ncolors -ge 8 ]; then
-        color_failed=$'\E'"[0;31m"
-        color_success=$'\E'"[0;32m"
-        color_reset=$'\E'"[00m"
+        color_failed="\e[0;31m"
+        color_success="\e[0;32m"
+        color_reset="\e[0m"
     else
         color_failed=""
         color_success=""
@@ -2546,9 +2053,9 @@ function mk_timer()
     fi
     echo
     if [ $ret -eq 0 ] ; then
-        echo -n "${color_success}#### make completed successfully "
+        printf "${color_success}#### make completed successfully "
     else
-        echo -n "${color_failed}#### make failed to build some targets "
+        printf "${color_failed}#### make failed to build some targets "
     fi
     if [ $hours -gt 0 ] ; then
         printf "(%02g:%02g:%02g (hh:mm:ss))" $hours $mins $secs
@@ -2557,38 +2064,8 @@ function mk_timer()
     elif [ $secs -gt 0 ] ; then
         printf "(%s seconds)" $secs
     fi
-    echo " ####${color_reset}"
-    echo
+    printf " ####${color_reset}\n\n"
     return $ret
-}
-
-function provision()
-{
-    if [ ! "$ANDROID_PRODUCT_OUT" ]; then
-        echo "Couldn't locate output files.  Try running 'lunch' first." >&2
-        return 1
-    fi
-    if [ ! -e "$ANDROID_PRODUCT_OUT/provision-device" ]; then
-        echo "There is no provisioning script for the device." >&2
-        return 1
-    fi
-
-    # Check if user really wants to do this.
-    if [ "$1" = "--no-confirmation" ]; then
-        shift 1
-    else
-        echo "This action will reflash your device."
-        echo ""
-        echo "ALL DATA ON THE DEVICE WILL BE IRREVOCABLY ERASED."
-        echo ""
-        echo -n "Are you sure you want to do this (yes/no)? "
-        read
-        if [[ "${REPLY}" != "yes" ]] ; then
-            echo "Not taking any action. Exiting." >&2
-            return 1
-        fi
-    fi
-    "$ANDROID_PRODUCT_OUT/provision-device" "$@"
 }
 
 function make()
@@ -2596,31 +2073,21 @@ function make()
     mk_timer $(get_make_command) "$@"
 }
 
-function __detect_shell() {
+if [ "x$SHELL" != "x/bin/bash" ]; then
     case `ps -o command -p $$` in
         *bash*)
-            echo bash
             ;;
         *zsh*)
-            echo zsh
             ;;
         *)
-            echo unknown
-            return 1
+            echo "WARNING: Only bash and zsh are supported, use of other shell may lead to erroneous results"
             ;;
     esac
-    return
-}
-
-
-if ! __detect_shell > /dev/null; then
-    echo "WARNING: Only bash and zsh are supported, use of other shell may lead to erroneous results"
 fi
 
 # Execute the contents of any vendorsetup.sh files we can find.
 for f in `test -d device && find -L device -maxdepth 4 -name 'vendorsetup.sh' 2> /dev/null | sort` \
-         `test -d vendor && find -L vendor -maxdepth 4 -name 'vendorsetup.sh' 2> /dev/null | sort` \
-         `test -d product && find -L product -maxdepth 4 -name 'vendorsetup.sh' 2> /dev/null | sort`
+         `test -d vendor && find -L vendor -maxdepth 4 -name 'vendorsetup.sh' 2> /dev/null | sort`
 do
     echo "including $f"
     . $f
