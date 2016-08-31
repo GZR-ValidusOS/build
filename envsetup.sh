@@ -1981,11 +1981,11 @@ alias mmmp='dopush mmm'
 alias mkap='dopush mka'
 alias cmkap='dopush cmka'
 
-# Force JAVA_HOME to point to java 1.7 if it isn't already set.
+# Force JAVA_HOME to point to java 1.8 if it isn't already set.
 #
-# Note that the MacOS path for java 1.7 includes a minor revision number (sigh).
+# Note that the MacOS path for java 1.8 includes a minor revision number (sigh).
 # For some reason, installing the JDK doesn't make it show up in the
-# JavaVM.framework/Versions/1.7/ folder.
+# JavaVM.framework/Versions/1.8/ folder.
 function set_java_home() {
     # Clear the existing JAVA_HOME value if we set it ourselves, so that
     # we can reset it later, depending on the version of java the build
@@ -2000,7 +2000,7 @@ function set_java_home() {
     if [ ! "$JAVA_HOME" ]; then
       case `uname -s` in
           Darwin)
-              export JAVA_HOME=$(/usr/libexec/java_home -v 1.7)
+              export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
               ;;
           *)
               export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
