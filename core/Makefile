@@ -8,6 +8,12 @@
 ifneq ($(BUILD_WITH_COLORS),0)
   CL_PFX="\033[33m"
   CL_INS="\033[36m"
+  CL_RED="\033[31m"
+  CL_GRN="\033[32m"
+  CL_YLW="\033[33m"
+  CL_BLU="\033[34m"
+  CL_MAG="\033[35m"
+  CL_CYN="\033[36m"
   CL_RST="\033[0m"
 endif
 
@@ -2139,7 +2145,22 @@ bacon: otapackage
 tesla: otapackage
 	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(TESLA_TARGET_PACKAGE)
 	$(hide) $(MD5SUM) $(TESLA_TARGET_PACKAGE) > $(TESLA_TARGET_PACKAGE).md5sum
-	@echo "Package Complete: $(TESLA_TARGET_PACKAGE)"
+	@echo -e ${CL_BLU}""${CL_BLU}
+	@echo -e ${CL_BLU}"    ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄            ▄▄▄▄▄▄▄▄▄▄▄ "${CL_BLU}
+	@echo -e ${CL_BLU}"   ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌          ▐░░░░░░░░░░░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"    ▀▀▀▀█░█▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌          ▐░█▀▀▀▀▀▀▀█░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░▌          ▐░▌          ▐░▌          ▐░▌       ▐░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄ ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌          ▐░█▄▄▄▄▄▄▄█░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌          ▐░░░░░░░░░░░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░█▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀█░▌▐░▌          ▐░█▀▀▀▀▀▀▀█░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░▌                    ▐░▌▐░▌          ▐░▌       ▐░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄█░▌▐░█▄▄▄▄▄▄▄▄▄ ▐░▌       ▐░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"        ▐░▌     ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌       ▐░▌"${CL_BLU}
+	@echo -e ${CL_BLU}"         ▀       ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀         ▀ "${CL_BLU}
+	@echo -e ${CL_BLU}"                           A Ground Zero Roms "${CL_BLU}
+	@echo -e ${CL_BLU}"                                Project      "${CL_BLU}
+	@echo -e ${CL_CYN}"Package Complete: $(TESLA_TARGET_PACKAGE)"${CL_RST}
+
 
 endif    # build_ota_package
 # -----------------------------------------------------------------
