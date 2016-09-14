@@ -637,10 +637,9 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   script.Print("|  _   _  ||_   __  |.' ____ \ |_   _|        / \    ");  
   script.Print("|_/ | | \_|  | |_ \_|| (___ \_|  | |         / _ \    "); 
   script.Print("    | |      |  _| _  _.____`.   | |   _    / ___ \    ");
-  script.Print("   _| |_    _| |__/ || \____) | _| |__/ | _/ /   \ \_  ");
-  script.Print("  |_____|  |________| \______.'|________||____| |____| ");
-  script.Print("                   AOSP Marshmallow                    "); 
-  script.Print("              A Ground Zero Roms Project           ");
+  script.Print("   _| |_    _| |__/ || \____) | _| |__/ | _/ /   \ \ ");
+  script.Print("                 AOSP Nougat ALPHA                     "); 
+  script.Print("           A Ground Zero Roms Project           ");
   script.Print("******************************************************"); 
 
   if OPTIONS.wipe_user_data:
