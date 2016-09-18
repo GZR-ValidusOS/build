@@ -1691,9 +1691,9 @@ def main(argv):
   # also apply the labels in our new image. During building, the "file_contexts"
   # is in the out/ directory tree, but for repacking from target-files.zip it's
   # in the root directory of the ramdisk.
-  if "selinux_fc" in OPTIONS.info_dict:
-    OPTIONS.info_dict["selinux_fc"] = os.path.join(
-        OPTIONS.input_tmp, "BOOT", "RAMDISK", "file_contexts")
+#  if "selinux_fc" in OPTIONS.info_dict:
+#    OPTIONS.info_dict["selinux_fc"] = os.path.join(
+#        OPTIONS.input_tmp, "BOOT", "RAMDISK", "file_contexts")
 
   if OPTIONS.verbose:
     print("--- target info ---")
