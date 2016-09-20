@@ -633,13 +633,13 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   system_progress = 0.75
 
   script.Print("************************************");
-  script.Print("           _____       _                           "); 
-  script.Print("          |_   _|__ __| |__ _                    "); 
-  script.Print("            | |/ -_|_-< / _` |                    "); 
-  script.Print("            |_|\___/__/_\__,_|                   "); 
-  script.Print("                                                      "); 
-  script.Print("              AOSP Nougat                    "); 
-  script.Print("   A Ground Zero Roms Project         ");
+  script.Print("         _____       _              "); 
+  script.Print("        |_   _|__ __| |__ _         "); 
+  script.Print("          | |/ -_|_-< / _` |        "); 
+  script.Print("          |_|\___/__/_\__,_|        "); 
+  script.Print("                                    "); 
+  script.Print("              AOSP Nougat           "); 
+  script.Print("       A Ground Zero Roms Project   ");
   script.Print("************************************"); 
 
   if OPTIONS.wipe_user_data:
