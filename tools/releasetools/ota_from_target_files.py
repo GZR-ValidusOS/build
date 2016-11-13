@@ -104,6 +104,21 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
       Override build.prop items with custom vendor init.
       Enabled when TARGET_UNIFIED_DEVICE is defined in BoardConfig
 
+  --log_diff <file>
+      Generate a log file that shows the differences in the source and target
+      builds for an incremental package. This option is only meaningful when
+      -i is specified.
+
+  --payload_signer <signer>
+      Specify the signer when signing the payload and metadata for A/B OTAs.
+      By default (i.e. without this flag), it calls 'openssl pkeyutl' to sign
+      with the package private key. If the private key cannot be accessed
+      directly, a payload signer that knows how to do that should be specified.
+      The signer will be supplied with "-inkey <path_to_key>",
+      "-in <input_file>" and "-out <output_file>" parameters.
+
+  --payload_signer_args <args>
+      Specify the arguments needed for payload signer.
 """
 
 from __future__ import print_function
@@ -116,6 +131,8 @@ if sys.hexversion < 0x02070000:
 
 import multiprocessing
 import os
+import subprocess
+import shlex
 import tempfile
 import zipfile
 
@@ -148,6 +165,13 @@ OPTIONS.full_bootloader = False
 OPTIONS.backuptool = False
 OPTIONS.override_device = 'auto'
 OPTIONS.override_prop = False
+# Stash size cannot exceed cache_size * threshold.
+OPTIONS.cache_size = None
+OPTIONS.stash_threshold = 0.8
+OPTIONS.gen_verify = False
+OPTIONS.log_diff = None
+OPTIONS.payload_signer = None
+OPTIONS.payload_signer_args = []
 
 def MostPopularKey(d, default):
   """Given a dict, return the key corresponding to the largest
@@ -872,8 +896,21 @@ def WriteBlockIncrementalOTAPackage(target_zip, source_zip, output_zip):
         int(i) for i in
         OPTIONS.info_dict.get("blockimgdiff_versions", "1").split(","))
 
+  # Check the first block of the source system partition for remount R/W only
+  # if the filesystem is ext4.
+  system_src_partition = OPTIONS.source_info_dict["fstab"]["/system"]
+  check_first_block = system_src_partition.fs_type == "ext4"
+  # Disable using imgdiff for squashfs. 'imgdiff -z' expects input files to be
+  # in zip formats. However with squashfs, a) all files are compressed in LZ4;
+  # b) the blocks listed in block map may not contain all the bytes for a given
+  # file (because they're rounded to be 4K-aligned).
+  system_tgt_partition = OPTIONS.target_info_dict["fstab"]["/system"]
+  disable_imgdiff = (system_src_partition.fs_type == "squashfs" or
+                     system_tgt_partition.fs_type == "squashfs")
   system_diff = common.BlockDifference("system", system_tgt, system_src,
-                                       version=blockimgdiff_version)
+                                       check_first_block,
+                                       version=blockimgdiff_version,
+                                       disable_imgdiff=disable_imgdiff)
 
   if HasVendorPartition(target_zip):
     if not HasVendorPartition(source_zip):
@@ -1061,8 +1098,252 @@ endif;
 """ % bcb_dev)
 
   script.SetProgress(1)
-  script.AddToZip(target_zip, output_zip, input_path=OPTIONS.updater_binary)
+  # For downgrade OTAs, we prefer to use the update-binary in the source
+  # build that is actually newer than the one in the target build.
+  if OPTIONS.downgrade:
+    script.AddToZip(source_zip, output_zip, input_path=OPTIONS.updater_binary)
+  else:
+    script.AddToZip(target_zip, output_zip, input_path=OPTIONS.updater_binary)
+  metadata["ota-required-cache"] = str(script.required_cache)
   WriteMetadata(metadata, output_zip)
+
+
+def WriteVerifyPackage(input_zip, output_zip):
+  script = edify_generator.EdifyGenerator(3, OPTIONS.info_dict)
+
+  oem_props = OPTIONS.info_dict.get("oem_fingerprint_properties")
+  recovery_mount_options = OPTIONS.info_dict.get(
+      "recovery_mount_options")
+  oem_dict = None
+  if oem_props is not None and len(oem_props) > 0:
+    if OPTIONS.oem_source is None:
+      raise common.ExternalError("OEM source required for this build")
+    script.Mount("/oem", recovery_mount_options)
+    oem_dict = common.LoadDictionaryFromLines(
+        open(OPTIONS.oem_source).readlines())
+
+  target_fp = CalculateFingerprint(oem_props, oem_dict, OPTIONS.info_dict)
+  metadata = {
+      "post-build": target_fp,
+      "pre-device": GetOemProperty("ro.product.device", oem_props, oem_dict,
+                                   OPTIONS.info_dict),
+      "post-timestamp": GetBuildProp("ro.build.date.utc", OPTIONS.info_dict),
+  }
+
+  device_specific = common.DeviceSpecificParams(
+      input_zip=input_zip,
+      input_version=OPTIONS.info_dict["recovery_api_version"],
+      output_zip=output_zip,
+      script=script,
+      input_tmp=OPTIONS.input_tmp,
+      metadata=metadata,
+      info_dict=OPTIONS.info_dict)
+
+  AppendAssertions(script, OPTIONS.info_dict, oem_dict)
+
+  script.Print("Verifying device images against %s..." % target_fp)
+  script.AppendExtra("")
+
+  script.Print("Verifying boot...")
+  boot_img = common.GetBootableImage(
+      "boot.img", "boot.img", OPTIONS.input_tmp, "BOOT")
+  boot_type, boot_device = common.GetTypeAndDevice(
+      "/boot", OPTIONS.info_dict)
+  script.Verify("%s:%s:%d:%s" % (
+      boot_type, boot_device, boot_img.size, boot_img.sha1))
+  script.AppendExtra("")
+
+  script.Print("Verifying recovery...")
+  recovery_img = common.GetBootableImage(
+      "recovery.img", "recovery.img", OPTIONS.input_tmp, "RECOVERY")
+  recovery_type, recovery_device = common.GetTypeAndDevice(
+      "/recovery", OPTIONS.info_dict)
+  script.Verify("%s:%s:%d:%s" % (
+      recovery_type, recovery_device, recovery_img.size, recovery_img.sha1))
+  script.AppendExtra("")
+
+  system_tgt = GetImage("system", OPTIONS.input_tmp, OPTIONS.info_dict)
+  system_tgt.ResetFileMap()
+  system_diff = common.BlockDifference("system", system_tgt, src=None)
+  system_diff.WriteStrictVerifyScript(script)
+
+  if HasVendorPartition(input_zip):
+    vendor_tgt = GetImage("vendor", OPTIONS.input_tmp, OPTIONS.info_dict)
+    vendor_tgt.ResetFileMap()
+    vendor_diff = common.BlockDifference("vendor", vendor_tgt, src=None)
+    vendor_diff.WriteStrictVerifyScript(script)
+
+  # Device specific partitions, such as radio, bootloader and etc.
+  device_specific.VerifyOTA_Assertions()
+
+  script.SetProgress(1.0)
+  script.AddToZip(input_zip, output_zip, input_path=OPTIONS.updater_binary)
+  metadata["ota-required-cache"] = str(script.required_cache)
+  WriteMetadata(metadata, output_zip)
+
+
+def WriteABOTAPackageWithBrilloScript(target_file, output_file,
+                                      source_file=None):
+  """Generate an Android OTA package that has A/B update payload."""
+
+  # Setup signing keys.
+  if OPTIONS.package_key is None:
+    OPTIONS.package_key = OPTIONS.info_dict.get(
+        "default_system_dev_certificate",
+        "build/target/product/security/testkey")
+
+  # A/B updater expects a signing key in RSA format. Gets the key ready for
+  # later use in step 3, unless a payload_signer has been specified.
+  if OPTIONS.payload_signer is None:
+    cmd = ["openssl", "pkcs8",
+           "-in", OPTIONS.package_key + OPTIONS.private_key_suffix,
+           "-inform", "DER", "-nocrypt"]
+    rsa_key = common.MakeTempFile(prefix="key-", suffix=".key")
+    cmd.extend(["-out", rsa_key])
+    p1 = common.Run(cmd, stdout=subprocess.PIPE)
+    p1.wait()
+    assert p1.returncode == 0, "openssl pkcs8 failed"
+
+  # Stage the output zip package for package signing.
+  temp_zip_file = tempfile.NamedTemporaryFile()
+  output_zip = zipfile.ZipFile(temp_zip_file, "w",
+                               compression=zipfile.ZIP_DEFLATED)
+
+  # Metadata to comply with Android OTA package format.
+  oem_props = OPTIONS.info_dict.get("oem_fingerprint_properties", None)
+  oem_dict = None
+  if oem_props:
+    if OPTIONS.oem_source is None:
+      raise common.ExternalError("OEM source required for this build")
+    oem_dict = common.LoadDictionaryFromLines(
+        open(OPTIONS.oem_source).readlines())
+
+  metadata = {
+      "post-build": CalculateFingerprint(oem_props, oem_dict,
+                                         OPTIONS.info_dict),
+      "post-build-incremental" : GetBuildProp("ro.build.version.incremental",
+                                              OPTIONS.info_dict),
+      "pre-device": GetOemProperty("ro.product.device", oem_props, oem_dict,
+                                   OPTIONS.info_dict),
+      "post-timestamp": GetBuildProp("ro.build.date.utc", OPTIONS.info_dict),
+      "ota-required-cache": "0",
+      "ota-type": "AB",
+  }
+
+  if source_file is not None:
+    metadata["pre-build"] = CalculateFingerprint(oem_props, oem_dict,
+                                                 OPTIONS.source_info_dict)
+    metadata["pre-build-incremental"] = GetBuildProp(
+        "ro.build.version.incremental", OPTIONS.source_info_dict)
+
+  # 1. Generate payload.
+  payload_file = common.MakeTempFile(prefix="payload-", suffix=".bin")
+  cmd = ["brillo_update_payload", "generate",
+         "--payload", payload_file,
+         "--target_image", target_file]
+  if source_file is not None:
+    cmd.extend(["--source_image", source_file])
+  p1 = common.Run(cmd, stdout=subprocess.PIPE)
+  p1.wait()
+  assert p1.returncode == 0, "brillo_update_payload generate failed"
+
+  # 2. Generate hashes of the payload and metadata files.
+  payload_sig_file = common.MakeTempFile(prefix="sig-", suffix=".bin")
+  metadata_sig_file = common.MakeTempFile(prefix="sig-", suffix=".bin")
+  cmd = ["brillo_update_payload", "hash",
+         "--unsigned_payload", payload_file,
+         "--signature_size", "256",
+         "--metadata_hash_file", metadata_sig_file,
+         "--payload_hash_file", payload_sig_file]
+  p1 = common.Run(cmd, stdout=subprocess.PIPE)
+  p1.wait()
+  assert p1.returncode == 0, "brillo_update_payload hash failed"
+
+  # 3. Sign the hashes and insert them back into the payload file.
+  signed_payload_sig_file = common.MakeTempFile(prefix="signed-sig-",
+                                                suffix=".bin")
+  signed_metadata_sig_file = common.MakeTempFile(prefix="signed-sig-",
+                                                 suffix=".bin")
+  # 3a. Sign the payload hash.
+  if OPTIONS.payload_signer is not None:
+    cmd = [OPTIONS.payload_signer]
+    cmd.extend(OPTIONS.payload_signer_args)
+  else:
+    cmd = ["openssl", "pkeyutl", "-sign",
+           "-inkey", rsa_key,
+           "-pkeyopt", "digest:sha256"]
+  cmd.extend(["-in", payload_sig_file,
+              "-out", signed_payload_sig_file])
+
+  p1 = common.Run(cmd, stdout=subprocess.PIPE)
+  p1.wait()
+  assert p1.returncode == 0, "openssl sign payload failed"
+
+  # 3b. Sign the metadata hash.
+  if OPTIONS.payload_signer is not None:
+    cmd = [OPTIONS.payload_signer]
+    cmd.extend(OPTIONS.payload_signer_args)
+  else:
+    cmd = ["openssl", "pkeyutl", "-sign",
+           "-inkey", rsa_key,
+           "-pkeyopt", "digest:sha256"]
+  cmd.extend(["-in", metadata_sig_file,
+              "-out", signed_metadata_sig_file])
+  p1 = common.Run(cmd, stdout=subprocess.PIPE)
+  p1.wait()
+  assert p1.returncode == 0, "openssl sign metadata failed"
+
+  # 3c. Insert the signatures back into the payload file.
+  signed_payload_file = common.MakeTempFile(prefix="signed-payload-",
+                                            suffix=".bin")
+  cmd = ["brillo_update_payload", "sign",
+         "--unsigned_payload", payload_file,
+         "--payload", signed_payload_file,
+         "--signature_size", "256",
+         "--metadata_signature_file", signed_metadata_sig_file,
+         "--payload_signature_file", signed_payload_sig_file]
+  p1 = common.Run(cmd, stdout=subprocess.PIPE)
+  p1.wait()
+  assert p1.returncode == 0, "brillo_update_payload sign failed"
+
+  # 4. Dump the signed payload properties.
+  properties_file = common.MakeTempFile(prefix="payload-properties-",
+                                        suffix=".txt")
+  cmd = ["brillo_update_payload", "properties",
+         "--payload", signed_payload_file,
+         "--properties_file", properties_file]
+  p1 = common.Run(cmd, stdout=subprocess.PIPE)
+  p1.wait()
+  assert p1.returncode == 0, "brillo_update_payload properties failed"
+
+  if OPTIONS.wipe_user_data:
+    with open(properties_file, "a") as f:
+      f.write("POWERWASH=1\n")
+    metadata["ota-wipe"] = "yes"
+
+  # Add the signed payload file and properties into the zip.
+  common.ZipWrite(output_zip, properties_file, arcname="payload_properties.txt")
+  common.ZipWrite(output_zip, signed_payload_file, arcname="payload.bin",
+                  compress_type=zipfile.ZIP_STORED)
+  WriteMetadata(metadata, output_zip)
+
+  # If dm-verity is supported for the device, copy contents of care_map
+  # into A/B OTA package.
+  if OPTIONS.info_dict.get("verity") == "true":
+    target_zip = zipfile.ZipFile(target_file, "r")
+    care_map_path = "META/care_map.txt"
+    namelist = target_zip.namelist()
+    if care_map_path in namelist:
+      care_map_data = target_zip.read(care_map_path)
+      common.ZipWriteStr(output_zip, "care_map.txt", care_map_data)
+    else:
+      print("Warning: cannot find care map file in target_file package")
+    common.ZipClose(target_zip)
+
+  # Sign the whole package to comply with the Android OTA package format.
+  common.ZipClose(output_zip)
+  SignOutput(temp_zip_file.name, output_file)
+  temp_zip_file.close()
 
 
 class FileDifference(object):
@@ -1632,12 +1913,20 @@ def main(argv):
       except ValueError:
         raise ValueError("Cannot parse value %r for option %r - expecting "
                          "a float" % (a, o))
+    elif o == ("--gen_verify",):
+      OPTIONS.gen_verify = True
+    elif o == ("--log_diff",):
+      OPTIONS.log_diff = a
     elif o in ("--backup",):
       OPTIONS.backuptool = bool(a.lower() == 'true')
     elif o in ("--override_device",):
       OPTIONS.override_device = a
     elif o in ("--override_prop",):
       OPTIONS.override_prop = bool(a.lower() == 'true')
+    elif o == "--payload_signer":
+      OPTIONS.payload_signer = a
+    elif o == "--payload_signer_args":
+      OPTIONS.payload_signer_args = shlex.split(a)
     else:
       return False
     return True
@@ -1663,9 +1952,13 @@ def main(argv):
                                  "verify",
                                  "no_fallback_to_full",
                                  "stash_threshold=",
+                                 "gen_verify",
+                                 "log_diff=",
                                  "backup=",
                                  "override_device=",
-                                 "override_prop="
+                                 "override_prop=",
+                                 "payload_signer=",
+                                 "payload_signer_args=",
                              ], extra_option_handler=option_handler)
 
   if len(args) != 2:
