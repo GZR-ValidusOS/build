@@ -68,7 +68,7 @@ def AddSystem(output_zip, prefix="IMAGES/", recovery_img=None, boot_img=None):
 
   prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "system.img")
   if os.path.exists(prebuilt_path):
-    print "system.img already exists in %s, no need to rebuild..." % (prefix,)
+    print ("system.img already exists in %s, no need to rebuild..." % (prefix,))
     return prebuilt_path
 
   def output_sink(fn, data):
@@ -101,7 +101,7 @@ def AddSystemOther(output_zip, prefix="IMAGES/"):
 
   prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "system_other.img")
   if os.path.exists(prebuilt_path):
-    print "system_other.img already exists in %s, no need to rebuild..." % (prefix,)
+    print ("system_other.img already exists in %s, no need to rebuild..." % (prefix,))
     return
 
   imgname = BuildSystemOther(OPTIONS.input_tmp, OPTIONS.info_dict)
@@ -119,7 +119,7 @@ def AddVendor(output_zip, prefix="IMAGES/"):
 
   prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "vendor.img")
   if os.path.exists(prebuilt_path):
-    print "vendor.img already exists in %s, no need to rebuild..." % (prefix,)
+    print ("vendor.img already exists in %s, no need to rebuild..." % (prefix,))
     return prebuilt_path
 
   block_list = common.MakeTempFile(prefix="vendor-blocklist-", suffix=".map")
@@ -224,7 +224,7 @@ def AddUserdata(output_zip, prefix="IMAGES/"):
 
   prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "userdata.img")
   if os.path.exists(prebuilt_path):
-    print("userdata.img already exists in %s, no need to rebuild..." % prefix)
+    print("userdata.img already exists in %s, no need to rebuild..." % (prefix))
     return
 
   image_props = build_image.ImagePropFromGlobalDict(OPTIONS.info_dict, "data")
@@ -294,7 +294,7 @@ def AddUserdataExtra(output_zip, prefix="IMAGES/"):
       not image_props.get("partition_size")):
     return
 
-  print("creating userdata_%s.img..." % extra_name)
+  print("creating userdata_%s.img..." % (extra_name))
 
   # The name of the directory it is making an image out of matters to
   # mkyaffs2image.  So we create a temp dir, and within it we create an
@@ -323,7 +323,7 @@ def AddCache(output_zip, prefix="IMAGES/"):
 
   prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "cache.img")
   if os.path.exists(prebuilt_path):
-    print("cache.img already exists in %s, no need to rebuild..." % prefix)
+    print("cache.img already exists in %s, no need to rebuild..." % (prefix))
     return
 
   image_props = build_image.ImagePropFromGlobalDict(OPTIONS.info_dict, "cache")
