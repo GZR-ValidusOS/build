@@ -79,7 +79,7 @@ function check_product()
         return
     fi
 
-    if (echo -n $1 | grep -q -e "^VALIDUS_") ; then
+    if (echo -n $1 | grep -q -e "^validus_") ; then
        VALIDUS_BUILD=$(echo -n $1 | sed -e 's/^validus_//g')
        export BUILD_NUMBER=$((date +%s%N ; echo $VALIDUS_BUILD; hostname) | openssl sha1 | sed -e 's/.*=//g; s/ //g' | cut -c1-10)
     else
