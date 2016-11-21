@@ -110,4 +110,4 @@ popd
 
 echo Done!
 echo Use the following command to set up your build environment:
-echo '  'lunch tesla_$DEVICE-eng
+echo '  'lunch validus_$DEVICE-eng

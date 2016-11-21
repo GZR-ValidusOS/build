@@ -42,11 +42,11 @@ except ImportError:
 DEBUG = False
 default_manifest = ".repo/manifest.xml"
 
-custom_local_manifest = ".repo/local_manifests/tesla_manifest.xml"
+custom_local_manifest = ".repo/local_manifests/validus_manifest.xml"
 custom_default_revision = "n7.1"
-custom_dependencies = "tesla.dependencies"
-org_manifest = "Tesla-M-Devices"  # leave empty if org is provided in manifest
-org_display = "Tesla-M-Devices"  # needed for displaying
+custom_dependencies = "validus.dependencies"
+org_manifest = "ValidusOs-Devices"  # leave empty if org is provided in manifest
+org_display = "ValidusOs-Devices"  # needed for displaying
 
 github_auth = None
 

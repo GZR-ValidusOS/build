@@ -179,9 +179,9 @@ include $(BUILD_SYSTEM)/node_fns.mk
 include $(BUILD_SYSTEM)/product.mk
 include $(BUILD_SYSTEM)/device.mk
 
-# A Tesla build needs only the Tesla product makefiles.
-ifneq ($(TESLA_BUILD),)
-  all_product_configs := $(shell find device -path "*/$(TESLA_BUILD)/tesla.mk")
+# A Validus build needs only the Validus product makefiles.
+ifneq ($(VALIDUS_BUILD),)
+  all_product_configs := $(shell find device -path "*/$(VALIDUS_BUILD)/validus.mk")
 else
   ifneq ($(strip $(TARGET_BUILD_APPS)),)
   # An unbundled app build needs only the core product makefiles.
@@ -192,9 +192,9 @@ else
     # files in the tree.
     all_product_configs := $(get-all-product-makefiles)
   endif # TARGET_BUILD_APPS
-endif # TESLA_BUILD
+endif # VALIDUS_BUILD
 
-ifeq ($(TESLA_BUILD),)
+ifeq ($(VALIDUS_BUILD),)
 # Find the product config makefile for the current product.
 # all_product_configs consists items like:
 # <product_name>:<path_to_the_product_makefile>

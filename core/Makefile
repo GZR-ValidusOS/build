@@ -6,15 +6,7 @@
 # INS: Module "Install:" output color (cyan for ics)
 
 ifneq ($(BUILD_WITH_COLORS),0)
-  CL_PFX="\033[33m"
-  CL_INS="\033[36m"
-  CL_RED="\033[31m"
-  CL_GRN="\033[32m"
-  CL_YLW="\033[33m"
-  CL_BLU="\033[34m"
-  CL_MAG="\033[35m"
-  CL_CYN="\033[36m"
-  CL_RST="\033[0m"
+    include $(TOP_DIR)build/core/colors.mk
 endif
 
 # HACK: clear LOCAL_PATH from including last build target before calling
@@ -251,7 +243,7 @@ endif
 	$(hide) TARGET_BUILD_TYPE="$(TARGET_BUILD_VARIANT)" \
 			TARGET_BUILD_FLAVOR="$(TARGET_BUILD_FLAVOR)" \
 			TARGET_DEVICE="$(TARGET_VENDOR_DEVICE_NAME)" \
-			TESLA_DEVICE="$(TARGET_DEVICE)" \
+			VALIDUS_DEVICE="$(TARGET_DEVICE)" \
 			PRODUCT_NAME="$(TARGET_VENDOR_PRODUCT_NAME)" \
 			PRODUCT_BRAND="$(PRODUCT_BRAND)" \
 			PRODUCT_DEFAULT_LOCALE="$(call get-default-product-locale,$(PRODUCT_LOCALES))" \
@@ -1047,8 +1039,8 @@ ifneq ($(OTA_PACKAGE_SIGNING_KEY),)
     PRODUCT_EXTRA_RECOVERY_KEYS := $(DEFAULT_SYSTEM_DEV_CERTIFICATE)
 else
     PRODUCT_EXTRA_RECOVERY_KEYS += \
-        build/target/product/security/cm \
-        build/target/product/security/cm-devkey
+        build/target/product/security/validus \
+        build/target/product/security/validus-devkey
 endif
 
 # Generate a file containing the keys that will be read by the
@@ -1260,7 +1252,7 @@ FULL_SYSTEMIMAGE_DEPS := $(INTERNAL_SYSTEMIMAGE_FILES) $(INTERNAL_USERIMAGES_DEP
 # system image.
 INSTALLED_FILES_FILE := $(PRODUCT_OUT)/installed-files.txt
 $(INSTALLED_FILES_FILE): $(FULL_SYSTEMIMAGE_DEPS)
-	$(hide) ./vendor/tesla/tools/changelog
+	$(hide) ./vendor/validus/tools/changelog
 	@echo Installed file list: $@
 	@mkdir -p $(dir $@)
 	@rm -f $@
@@ -2191,7 +2183,7 @@ endif
 ifeq ($(WITH_GMS),true)
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
 else
-ifneq ($(TESLA_BUILD),)
+ifneq ($(VALIDUS_BUILD),)
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := true
 else
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
@@ -2229,32 +2221,30 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE)
 	   $(if $(OEM_OTA_CONFIG), -o $(OEM_OTA_CONFIG)) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
 
-TESLA_TARGET_PACKAGE := $(PRODUCT_OUT)/$(TESLA_MOD_VERSION).zip
+VALIDUS_TARGET_PACKAGE := $(PRODUCT_OUT)/$(VALIDUS_MOD_VERSION).zip
 
-.PHONY: otapackage bacon tesla
+.PHONY: otapackage bacon validus
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
 bacon: otapackage
-	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(TESLA_TARGET_PACKAGE)
-	$(hide) $(MD5SUM) $(TESLA_TARGET_PACKAGE) > $(TESLA_TARGET_PACKAGE).md5sum
-	@echo "Package Complete: $(TESLA_TARGET_PACKAGE)"
-tesla: otapackage
-	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(TESLA_TARGET_PACKAGE)
-	$(hide) $(MD5SUM) $(TESLA_TARGET_PACKAGE) > $(TESLA_TARGET_PACKAGE).md5sum
-	@echo -e ${CL_BLU}""${CL_BLU}
-	@echo -e ${CL_BLU}"    ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄            ▄▄▄▄▄▄▄▄▄▄▄ "${CL_BLU}
-	@echo -e ${CL_BLU}"   ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌          ▐░░░░░░░░░░░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"    ▀▀▀▀█░█▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌          ▐░█▀▀▀▀▀▀▀█░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░▌          ▐░▌          ▐░▌          ▐░▌       ▐░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄ ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌          ▐░█▄▄▄▄▄▄▄█░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌          ▐░░░░░░░░░░░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░█▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀█░▌▐░▌          ▐░█▀▀▀▀▀▀▀█░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░▌                    ▐░▌▐░▌          ▐░▌       ▐░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄█░▌▐░█▄▄▄▄▄▄▄▄▄ ▐░▌       ▐░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"        ▐░▌     ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌       ▐░▌"${CL_BLU}
-	@echo -e ${CL_BLU}"         ▀       ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀         ▀ "${CL_BLU}
-	@echo -e ${CL_BLU}"                           A Ground Zero Roms "${CL_BLU}
-	@echo -e ${CL_BLU}"                                Project      "${CL_BLU}
-	@echo -e ${CL_CYN}"Package Complete: $(TESLA_TARGET_PACKAGE)"${CL_RST}
+	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(VALIDUS_TARGET_PACKAGE)
+	$(hide) $(MD5SUM) $(VALIDUS_TARGET_PACKAGE) > $(VALIDUS_TARGET_PACKAGE).md5sum
+	@echo "Package Complete: $(VALIDUS_TARGET_PACKAGE)"
+validus: otapackage
+	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(VALIDUS_TARGET_PACKAGE)
+	$(hide) $(MD5SUM) $(VALIDUS_TARGET_PACKAGE) > $(VALIDUS_TARGET_PACKAGE).md5sum
+	@echo -e ${CL_RED}""${CL_RED}
+	@echo -e ${CL_RED}"    ▄█    █▄     ▄████████  ▄█        ▄█  ████████▄  ███    █▄     ▄████████ "${CL_RED}
+	@echo -e ${CL_RED}"   ███    ███   ███    ███ ███       ███  ███   ▀███ ███    ███   ███    ███ "${CL_RED}
+	@echo -e ${CL_RED}"   ███    ███   ███    ███ ███       ███▌ ███    ███ ███    ███   ███    █▀  "${CL_RED}
+	@echo -e ${CL_RED}"   ███    ███   ███    ███ ███       ███▌ ███    ███ ███    ███   ███        "${CL_RED}
+	@echo -e ${CL_RED}"   ███    ███ ▀███████████ ███       ███▌ ███    ███ ███    ███ ▀███████████ "${CL_RED}
+	@echo -e ${CL_RED}"   ███    ███   ███    ███ ███       ███  ███    ███ ███    ███          ███ "${CL_RED}
+	@echo -e ${CL_RED}"   ███    ███   ███    ███ ███▌    ▄ ███  ███   ▄███ ███    ███    ▄█    ███ "${CL_RED}
+	@echo -e ${CL_RED}"    ▀██████▀    ███    █▀  █████▄▄██ █▀   ████████▀  ████████▀   ▄████████▀  "${CL_RED}
+	@echo -e ${CL_RED}"                           ▀                                                 "${CL_RED}
+	@echo -e ${CL_RED}"                           A Ground Zero Roms "${CL_RED}
+	@echo -e ${CL_RED}"                                Project      "${CL_RED}
+	@echo -e ${CL_MAG}"Package Complete: $(VALIDUS_TARGET_PACKAGE)"${CL_RST}
 
 
 endif    # build_ota_package

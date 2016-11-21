@@ -65,6 +65,6 @@ if [ "$TARGET_UNIFIED_DEVICE" == "" ] ; then
 fi
 echo "ro.build.characteristics=$TARGET_AAPT_CHARACTERISTICS"
 
-echo "ro.tesla.device=$TESLA_DEVICE"
+echo "ro.validus.device=$VALIDUS_DEVICE"
 
 echo "# end build properties"
