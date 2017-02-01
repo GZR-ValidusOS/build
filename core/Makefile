@@ -280,6 +280,13 @@ endif
 			TARGET_SKIP_PRODUCT_DEVICE="$(TARGET_SKIP_PRODUCT_DEVICE)" \
 			$(PRODUCT_BUILD_PROP_OVERRIDES) \
 	        bash $(BUILDINFO_SH) >> $@
+	$(if $(ADDITIONAL_BUILD_PROPERTIES), \
+		$(hide) echo >> $@; \
+		        echo "#" >> $@; \
+		        echo "# ADDITIONAL_BUILD_PROPERTIES" >> $@; \
+		        echo "#" >> $@; )
+	$(hide) $(foreach line,$(ADDITIONAL_BUILD_PROPERTIES), \
+		echo "$(line)" >> $@;)
 	$(hide) $(foreach file,$(system_prop_file), \
 		if [ -f "$(file)" ]; then \
 			echo "#" >> $@; \
@@ -288,13 +295,6 @@ endif
 			echo "#" >> $@; \
 			cat $(file) >> $@; \
 		fi;)
-	$(if $(ADDITIONAL_BUILD_PROPERTIES), \
-		$(hide) echo >> $@; \
-		        echo "#" >> $@; \
-		        echo "# ADDITIONAL_BUILD_PROPERTIES" >> $@; \
-		        echo "#" >> $@; )
-	$(hide) $(foreach line,$(ADDITIONAL_BUILD_PROPERTIES), \
-		echo "$(line)" >> $@;)
 	$(hide) cat $(INSTALLED_ANDROID_INFO_TXT_TARGET) | grep 'require version-' | sed -e 's/require version-/ro.build.expect./g' >> $@
 	$(hide) build/tools/post_process_props.py $@ "$(PRODUCT_PROPERTY_UBER_OVERRIDES)" $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_PROPERTY_BLACKLIST)
 
