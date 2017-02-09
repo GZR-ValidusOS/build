@@ -657,10 +657,10 @@ else
 endif
 
 # Rules for QCOM targets
-include $(BUILD_SYSTEM)/qcom_target.mk
+include vendor/validus/build/core/qcom_target.mk
 
 # Rules for MTK targets
-include $(BUILD_SYSTEM)/mtk_target.mk
+include vendor/validus/build/core/mtk_target.mk
 
 # ###############################################################
 # Set up final options.
