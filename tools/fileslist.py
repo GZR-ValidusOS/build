@@ -55,7 +55,7 @@ def main(argv):
           pass
 
   output.sort(key=operator.itemgetter("Size", "Name"), reverse=True)
-  print json.dumps(output, indent=2, separators=(',',': '))
+  print(json.dumps(output, indent=2, separators=(',',': ')))
 
 if __name__ == '__main__':
   main(sys.argv)
