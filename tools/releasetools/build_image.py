@@ -154,7 +154,7 @@ def BuildVerityFEC(sparse_image_path, verity_path, verity_fec_path,
                    padding_size):
   cmd = "fec -e -p %d %s %s %s" % (padding_size, sparse_image_path,
                                    verity_path, verity_fec_path)
-  print cmd
+  print(cmd)
   status, output = getstatusoutput(cmd)
   if status:
     print("Could not build FEC data! Error: %s" % output)
@@ -196,7 +196,7 @@ def BuildVerityMetadata(image_size, verity_metadata_path, root_hash, salt,
 
   status, output = getstatusoutput(cmd)
   if status:
-    print "Could not build verity metadata! Error: %s" % output
+    print ("Could not build verity metadata! Error: %s" % (output))
     return False
 
   return True
