@@ -833,11 +833,16 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
     script.FlashMagisk()
     script.Print(" ")
 
-  if block_based:
+  if OPTIONS.info_dict.get("default_root_method") == "supersu":
     script.Print("Flashing SuperSU...")
     common.ZipWriteStr(output_zip, "supersu/supersu.zip",
     ""+input_zip.read("SYSTEM/addon.d/UPDATE-SuperSU.zip"))
     script.FlashSuperSU()
+
+  # SuperSU leave /system unmounted while we need it mounted here to avoid
+  # a warning from non-Multirom TWRP
+  if block_based:
+      script.Mount("/system")
 
   script.ShowProgress(0.2, 10)
   device_specific.FullOTA_InstallEnd()
