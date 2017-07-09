@@ -819,12 +819,8 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   script.ShowProgress(0.05, 5)
   script.WriteRawImage("/boot", "boot.img")
 
-  if OPTIONS.info_dict.get("default_root_method") == "rootless":
-    script.Print(" ")
-    script.Print("root package not found, ROM is rootless...")
-    script.Print(" ")
-  else:
-    # Magisk is default root method
+  if OPTIONS.info_dict.get("default_root_method") == "magisk":
+    # Magisk root method
     script.Print(" ")
     script.Print("Flashing Magisk...")
     script.Print(" ")
@@ -834,15 +830,19 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
     script.Print(" ")
 
   if OPTIONS.info_dict.get("default_root_method") == "supersu":
+    # SuperSU root method
     script.Print("Flashing SuperSU...")
     common.ZipWriteStr(output_zip, "supersu/supersu.zip",
     ""+input_zip.read("SYSTEM/addon.d/UPDATE-SuperSU.zip"))
     script.FlashSuperSU()
-
-  # SuperSU leave /system unmounted while we need it mounted here to avoid
-  # a warning from non-Multirom TWRP
-  if block_based:
+    # SuperSU leave /system unmounted while we need it mounted here to avoid
+    # a warning from non-Multirom TWRP
+    if block_based:
       script.Mount("/system")
+
+  # Explict rootless defined, or none of the root methods defined,
+  # default rootless : nothing todo
+  #if OPTIONS.info_dict.get("default_root_method") == "rootless":
 
   script.ShowProgress(0.2, 10)
   device_specific.FullOTA_InstallEnd()
